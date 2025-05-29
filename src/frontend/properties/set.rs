@@ -1,5 +1,6 @@
 use crate::frontend::sys::{
-    FeDeliverySystem, FeModulation, FeSpectralInversion,
+    FeCodeRate, FeDeliverySystem, FeGuardInterval, FeModulation, FeSpectralInversion,
+    FeTransmitMode,
     property::{Command, DtvProperty},
 };
 
@@ -11,6 +12,8 @@ pub trait SetPropertyQuery {
 
 //
 // ----- Individual queries
+
+// TODO: Macro for all "simple" single data properties
 
 pub struct Tune {}
 impl SetPropertyQuery for Tune {
@@ -58,7 +61,7 @@ impl SetPropertyQuery for Modulation {
 
 // --
 
-pub enum Bandwidth {
+pub enum BandwidthHz {
     _1_172MHz,
     _5MHz,
     _6MHz,
@@ -66,19 +69,19 @@ pub enum Bandwidth {
     _8MHz,
     _10MHz,
 }
-impl Bandwidth {
+impl BandwidthHz {
     pub fn value(&self) -> u32 {
         match self {
-            Bandwidth::_1_172MHz => 1712000,
-            Bandwidth::_5MHz => 5000000,
-            Bandwidth::_6MHz => 6000000,
-            Bandwidth::_7MHz => 7000000,
-            Bandwidth::_8MHz => 8000000,
-            Bandwidth::_10MHz => 10000000,
+            BandwidthHz::_1_172MHz => 1712000,
+            BandwidthHz::_5MHz => 5000000,
+            BandwidthHz::_6MHz => 6000000,
+            BandwidthHz::_7MHz => 7000000,
+            BandwidthHz::_8MHz => 8000000,
+            BandwidthHz::_10MHz => 10000000,
         }
     }
 }
-impl SetPropertyQuery for Bandwidth {
+impl SetPropertyQuery for BandwidthHz {
     fn property(self) -> DtvProperty {
         DtvProperty::new_data(Command::DTV_BANDWIDTH_HZ, self.value())
     }
@@ -104,7 +107,17 @@ pub struct SymbolRate {}
 
 // --
 
-pub struct InnerFec {}
+pub struct InnerFec(FeCodeRate);
+impl InnerFec {
+    pub fn new(rate: FeCodeRate) -> InnerFec {
+        InnerFec(rate)
+    }
+}
+impl SetPropertyQuery for InnerFec {
+    fn property(self) -> DtvProperty {
+        DtvProperty::new_data(Command::DTV_INNER_FEC, self.0 as u32)
+    }
+}
 
 // --
 
@@ -140,15 +153,45 @@ pub struct Tone {}
 
 // --
 
-pub struct CodeRateHp {}
+pub struct CodeRateHp(FeTransmitMode);
+impl CodeRateHp {
+    pub fn new(mode: FeTransmitMode) -> CodeRateHp {
+        CodeRateHp(mode)
+    }
+}
+impl SetPropertyQuery for CodeRateHp {
+    fn property(self) -> DtvProperty {
+        DtvProperty::new_data(Command::DTV_CODE_RATE_HP, self.0 as u32)
+    }
+}
 
 // --
 
-pub struct CodeRateLp {}
+pub struct CodeRateLp(FeTransmitMode);
+impl CodeRateLp {
+    pub fn new(mode: FeTransmitMode) -> CodeRateLp {
+        CodeRateLp(mode)
+    }
+}
+impl SetPropertyQuery for CodeRateLp {
+    fn property(self) -> DtvProperty {
+        DtvProperty::new_data(Command::DTV_CODE_RATE_LP, self.0 as u32)
+    }
+}
 
 // --
 
-pub struct GuardInterval {}
+pub struct GuardInterval(FeGuardInterval);
+impl GuardInterval {
+    pub fn new(interval: FeGuardInterval) -> GuardInterval {
+        GuardInterval(interval)
+    }
+}
+impl SetPropertyQuery for GuardInterval {
+    fn property(self) -> DtvProperty {
+        DtvProperty::new_data(Command::DTV_GUARD_INTERVAL, self.0 as u32)
+    }
+}
 
 // --
 

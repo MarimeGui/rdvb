@@ -9,6 +9,11 @@ use std::{
 use enum_from_discriminant_derive::TryFromDiscriminant;
 
 //
+// ----- Constants
+
+pub const DTV_IOCTL_MAX_MSGS: usize = 64;
+
+//
 // ----- Frontend Info
 
 #[repr(C)]
@@ -243,4 +248,139 @@ pub enum FeSpectralInversion {
     INVERSION_ON,
     /// Autodetect spectral band inversion.
     INVERSION_AUTO,
+}
+
+/// Guard interval
+///
+/// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-header.html#c.fe_guard_interval))
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+#[allow(non_camel_case_types)]
+pub enum FeGuardInterval {
+    /// Guard interval 1/32
+    GUARD_INTERVAL_1_32,
+    /// Guard interval 1/16
+    GUARD_INTERVAL_1_16,
+    /// Guard interval 1/8
+    GUARD_INTERVAL_1_8,
+    /// Guard interval 1/4
+    GUARD_INTERVAL_1_4,
+    /// Autodetect the guard interval
+    GUARD_INTERVAL_AUTO,
+    /// Guard interval 1/128
+    GUARD_INTERVAL_1_128,
+    /// Guard interval 19/128
+    GUARD_INTERVAL_19_128,
+    /// Guard interval 19/256
+    GUARD_INTERVAL_19_256,
+    /// PN length 420 (1/4)
+    GUARD_INTERVAL_PN420,
+    /// PN length 595 (1/6)
+    GUARD_INTERVAL_PN595,
+    /// PN length 945 (1/9)
+    GUARD_INTERVAL_PN945,
+    /// Guard interval 1/64
+    GUARD_INTERVAL_1_64,
+}
+
+/// Transmission mode
+///
+/// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-header.html#c.fe_transmit_mode))
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+#[allow(non_camel_case_types)]
+pub enum FeTransmitMode {
+    /// Transmission mode 2K
+    TRANSMISSION_MODE_2K,
+    /// Transmission mode 8K
+    TRANSMISSION_MODE_8K,
+    /// Autodetect transmission mode. The hardware will try to find the correct FFT-size (if capable) to fill in the missing parameters.
+    TRANSMISSION_MODE_AUTO,
+    /// Transmission mode 4K
+    TRANSMISSION_MODE_4K,
+    /// Transmission mode 1K
+    TRANSMISSION_MODE_1K,
+    /// Transmission mode 16K
+    TRANSMISSION_MODE_16K,
+    /// Transmission mode 32K
+    TRANSMISSION_MODE_32K,
+    /// Single Carrier (C=1) transmission mode (DTMB only)
+    TRANSMISSION_MODE_C1,
+    /// Multi Carrier (C=3780) transmission mode (DTMB only)
+    TRANSMISSION_MODE_C3780,
+}
+
+/// Type of Forward Error Correction (FEC)
+///
+/// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-header.html#c.fe_code_rate))
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+#[allow(non_camel_case_types)]
+pub enum FeCodeRate {
+    /// No Forward Error Correction Code
+    FEC_NONE = 0,
+    /// Forward Error Correction Code 1/2
+    FEC_1_2,
+    /// Forward Error Correction Code 2/3
+    FEC_2_3,
+    /// Forward Error Correction Code 3/4
+    FEC_3_4,
+    /// Forward Error Correction Code 4/5
+    FEC_4_5,
+    /// Forward Error Correction Code 5/6
+    FEC_5_6,
+    /// Forward Error Correction Code 6/7
+    FEC_6_7,
+    /// Forward Error Correction Code 7/8
+    FEC_7_8,
+    /// Forward Error Correction Code 8/9
+    FEC_8_9,
+    /// Autodetect Error Correction Code
+    FEC_AUTO,
+    /// Forward Error Correction Code 3/5
+    FEC_3_5,
+    /// Forward Error Correction Code 9/10
+    FEC_9_10,
+    /// Forward Error Correction Code 2/5
+    FEC_2_5,
+    /// Forward Error Correction Code 1/3
+    FEC_1_3,
+    /// Forward Error Correction Code 1/4
+    FEC_1_4,
+    /// Forward Error Correction Code 5/9
+    FEC_5_9,
+    /// Forward Error Correction Code 7/9
+    FEC_7_9,
+    /// Forward Error Correction Code 8/15
+    FEC_8_15,
+    /// Forward Error Correction Code 11/15
+    FEC_11_15,
+    /// Forward Error Correction Code 13/18
+    FEC_13_18,
+    /// Forward Error Correction Code 9/20
+    FEC_9_20,
+    /// Forward Error Correction Code 11/20
+    FEC_11_20,
+    /// Forward Error Correction Code 23/36
+    FEC_23_36,
+    /// Forward Error Correction Code 25/36
+    FEC_25_36,
+    /// Forward Error Correction Code 13/45
+    FEC_13_45,
+    /// Forward Error Correction Code 26/45
+    FEC_26_45,
+    /// Forward Error Correction Code 28/45
+    FEC_28_45,
+    /// Forward Error Correction Code 32/45
+    FEC_32_45,
+    /// Forward Error Correction Code 77/90
+    FEC_77_90,
+    /// Forward Error Correction Code 11/45
+    FEC_11_45,
+    /// Forward Error Correction Code 4/15
+    FEC_4_15,
+    /// Forward Error Correction Code 14/45
+    FEC_14_45,
+    /// Forward Error Correction Code 7/15
+    FEC_7_15,
 }

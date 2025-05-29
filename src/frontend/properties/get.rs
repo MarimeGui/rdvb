@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::frontend::sys::{
     FeDeliverySystem,
-    property::{Command, DtvProperty, DtvPropertyUnion},
+    property::{Command, DtvProperty, DtvPropertyUnion, DtvStatsValue, FeCapScaleParams},
 };
 
 //
@@ -54,6 +54,38 @@ impl<T: PropertyQuery> PendingQuery<T> {
     }
 }
 
+pub enum StatResult {
+    Value(ValueStat),
+    Count(u64),
+}
+
+#[derive(Debug)]
+pub enum ValueStat {
+    Decibel(i64),
+    Relative(u64),
+}
+
+impl StatResult {
+    fn from(scale: FeCapScaleParams, raw_value: DtvStatsValue) -> Option<StatResult> {
+        match scale {
+            FeCapScaleParams::FE_SCALE_NOT_AVAILABLE => None,
+            FeCapScaleParams::FE_SCALE_DECIBEL => {
+                Some(StatResult::Value(ValueStat::Decibel(unsafe {
+                    raw_value.svalue
+                })))
+            }
+            FeCapScaleParams::FE_SCALE_RELATIVE => {
+                Some(StatResult::Value(ValueStat::Relative(unsafe {
+                    raw_value.uvalue
+                })))
+            }
+            FeCapScaleParams::FE_SCALE_COUNTER => {
+                Some(StatResult::Count(unsafe { raw_value.uvalue }))
+            }
+        }
+    }
+}
+
 //
 // ----- Individual queries
 
@@ -96,11 +128,7 @@ impl PropertyQuery for Frequency {
 // ---
 
 #[derive(Debug)]
-pub enum SignalStrength {
-    None,
-    Decibel(i64),
-    Relative(u64),
-}
+pub struct SignalStrength(pub Option<ValueStat>);
 impl PropertyQuery for SignalStrength {
     fn associated_command() -> Command {
         Command::DTV_STAT_SIGNAL_STRENGTH
@@ -110,10 +138,44 @@ impl PropertyQuery for SignalStrength {
         let stats = unsafe { u.st };
         assert_eq!(stats.len, 1);
         let stat = stats.stat[0];
-        match stat.scale {
-            1 => SignalStrength::Decibel(unsafe { stat.__bindgen_anon_1.svalue }),
-            2 => SignalStrength::Relative(unsafe { stat.__bindgen_anon_1.uvalue }),
-            _ => SignalStrength::None,
+        let scale = FeCapScaleParams::try_from(stat.scale).expect("unexpected value for stat type");
+        let res = match StatResult::from(scale, stat.value) {
+            Some(v) => v,
+            None => return Self(None),
+        };
+        match res {
+            StatResult::Value(value_stat) => Self(Some(value_stat)),
+            StatResult::Count(_) => panic!("expected a value, not a count"),
+        }
+    }
+}
+
+// --
+
+#[derive(Debug)]
+pub struct CarrierSignalToNoise(pub Option<ValueStat>);
+
+// --
+
+#[derive(Debug)]
+pub struct TotalBlockCount(pub Option<u64>);
+impl PropertyQuery for TotalBlockCount {
+    fn associated_command() -> Command {
+        Command::DTV_STAT_TOTAL_BLOCK_COUNT
+    }
+
+    fn from_property(u: DtvPropertyUnion) -> Self {
+        let stats = unsafe { u.st };
+        assert_eq!(stats.len, 1);
+        let stat = stats.stat[0];
+        let scale = FeCapScaleParams::try_from(stat.scale).expect("unexpected value for stat type");
+        let res = match StatResult::from(scale, stat.value) {
+            Some(v) => v,
+            None => return Self(None),
+        };
+        match res {
+            StatResult::Value(_) => panic!("expected a count, not a value"),
+            StatResult::Count(count) => Self(Some(count)),
         }
     }
 }

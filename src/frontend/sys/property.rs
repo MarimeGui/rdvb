@@ -1,5 +1,7 @@
 use std::ffi::{c_int, c_void};
 
+use enum_from_discriminant_derive::TryFromDiscriminant;
+
 //
 // ----- Commands
 
@@ -161,13 +163,65 @@ pub enum Command {
 
     //
     // ----- Quality parameters
+    /// Indicates the signal strength level at the analog part of the tuner or of the demod.
+    ///
+    /// Possible scales for this metric are:
+    ///
+    /// - ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the measurement was not complete yet.
+    /// - ``FE_SCALE_DECIBEL`` - signal strength is in 0.001 dBm units, power measured in miliwatts. This value is generally negative.
+    /// - ``FE_SCALE_RELATIVE`` - The frontend provides a 0% to 100% measurement for power (actually, 0 to 65535).
+    ///
+    /// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-stat-properties.html#dtv-stat-signal-strength))
     DTV_STAT_SIGNAL_STRENGTH = 62,
+    /// Indicates the Signal to Noise ratio for the main carrier.
+    ///
+    /// Possible scales for this metric are:
+    ///
+    /// - ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the measurement was not complete yet.
+    /// - ``FE_SCALE_DECIBEL`` - Signal/Noise ratio is in 0.001 dB units.
+    /// - ``FE_SCALE_RELATIVE`` - The frontend provides a 0% to 100% measurement for Signal/Noise (actually, 0 to 65535).
+    ///
+    /// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-stat-properties.html#dtv-stat-cnr))
     DTV_STAT_CNR = 63,
+    /// Measures the number of bit errors before the forward error correction (FEC) on the inner coding block (before Viterbi, LDPC or other inner code).
+    ///
+    /// This measure is taken during the same interval as ``DTV_STAT_PRE_TOTAL_BIT_COUNT``.
+    ///
+    /// In order to get the BER (Bit Error Rate) measurement, it should be divided by ``DTV_STAT_PRE_TOTAL_BIT_COUNT``.
+    ///
+    /// This measurement is monotonically increased, as the frontend gets more bit count measurements. The frontend may reset it when a channel/transponder is tuned.
+    ///
+    /// Possible scales for this metric are:
+    ///
+    /// - ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the measurement was not complete yet.
+    /// - ``FE_SCALE_COUNTER`` - Number of error bits counted before the inner coding.
+    ///
+    /// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-stat-properties.html#dtv-stat-pre-error-bit-count))
     DTV_STAT_PRE_ERROR_BIT_COUNT = 64,
+    /// Measures the amount of bits received before the inner code block, during the same period as DTV_STAT_PRE_ERROR_BIT_COUNT measurement was taken.
+    ///
+    /// It should be noted that this measurement can be smaller than the total amount of bits on the transport stream, as the frontend may need to manually restart the measurement, losing some data between each measurement interval.
+    ///
+    /// This measurement is monotonically increased, as the frontend gets more bit count measurements. The frontend may reset it when a channel/transponder is tuned.
+    ///
+    /// Possible scales for this metric are:
+    ///
+    /// - ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the measurement was not complete yet.
+    /// - ``FE_SCALE_COUNTER`` - Number of bits counted while measuring DTV_STAT_PRE_ERROR_BIT_COUNT.
+    ///
+    /// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-stat-properties.html#dtv-stat-pre-total-bit-count))
     DTV_STAT_PRE_TOTAL_BIT_COUNT = 65,
     DTV_STAT_POST_ERROR_BIT_COUNT = 66,
     DTV_STAT_POST_TOTAL_BIT_COUNT = 67,
     DTV_STAT_ERROR_BLOCK_COUNT = 68,
+    /// Measures the total number of blocks received during the same period as DTV_STAT_ERROR_BLOCK_COUNT measurement was taken.
+    ///
+    /// It can be used to calculate the PER indicator, by dividing DTV_STAT_ERROR_BLOCK_COUNT by DTV-STAT_TOTAL_BLOCK_COUNT.
+    ///
+    /// Possible scales for this metric are:
+    ///
+    /// - ``FE_SCALE_NOT_AVAILABLE`` - it failed to measure it, or the measurement was not complete yet.
+    /// - ``FE_SCALE_COUNTER`` - Number of blocks counted while measuring DTV_STAT_ERROR_BLOCK_COUNT.
     DTV_STAT_TOTAL_BLOCK_COUNT = 69,
 
     //
@@ -234,12 +288,12 @@ pub struct DtvFeStats {
 #[derive(Copy, Clone)]
 pub struct DtvStats {
     pub scale: u8,
-    pub __bindgen_anon_1: DtvStatsUnion,
+    pub value: DtvStatsValue,
 }
 
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
-pub union DtvStatsUnion {
+pub union DtvStatsValue {
     pub uvalue: u64,
     pub svalue: i64,
 }
@@ -251,4 +305,21 @@ pub struct DtvPropertyABuffer {
     pub len: u32,
     pub reserved1: [u32; 3],
     pub reserved2: *mut c_void,
+}
+
+/// scale types for the quality parameters.
+///
+/// (from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-header.html#c.fecap_scale_params))
+#[repr(C)]
+#[derive(Debug, Copy, Clone, TryFromDiscriminant)]
+#[allow(non_camel_case_types)]
+pub enum FeCapScaleParams {
+    /// That QoS measure is not available. That could indicate a temporary or a permanent condition.
+    FE_SCALE_NOT_AVAILABLE = 0,
+    /// The scale is measured in 0.001 dB steps, typically used on signal measures.
+    FE_SCALE_DECIBEL,
+    /// The scale is a relative percentual measure, ranging from 0 (0%) to 0xffff (100%).
+    FE_SCALE_RELATIVE,
+    /// The scale counts the occurrence of an event, like bit error, block error, lapsed time.
+    FE_SCALE_COUNTER,
 }

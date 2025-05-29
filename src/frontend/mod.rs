@@ -59,6 +59,10 @@ impl Frontend {
         &self.info
     }
 
+    /// Print the status of the frontend.
+    ///
+    /// If this fails while the frontend isn't tuned, this may mean that the system is missing a required firmware.
+    /// Check dmesg if that is the case.
     pub fn status(&self) -> FeStatus {
         FeStatus::from(read_status(self.fd.as_fd()).unwrap())
     }

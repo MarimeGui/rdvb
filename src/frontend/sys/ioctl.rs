@@ -7,7 +7,7 @@ use std::{
 use nix::{ioctl_read, ioctl_write_ptr};
 
 use super::{
-    DvbFrontendInfo,
+    DTV_IOCTL_MAX_MSGS, DvbFrontendInfo,
     property::{DtvProperties, DtvProperty},
 };
 
@@ -54,6 +54,10 @@ pub fn get_set_properties_raw(
 ) -> Option<()> {
     if count == 0 {
         return Some(());
+    }
+
+    if count > DTV_IOCTL_MAX_MSGS {
+        return None;
     }
 
     let mut properties = DtvProperties {
