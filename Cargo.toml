@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-enum-from-discriminant-derive = { path = "../enum-from-discriminant-derive" }
+enum-from-discriminant-derive = { git = "https://github.com/MarimeGui/enum-from-discriminant-derive.git" }
 nix = { version = "0.30.1", features = ["fs", "ioctl"] }
