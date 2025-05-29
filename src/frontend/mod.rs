@@ -14,9 +14,11 @@ use nix::{
 };
 
 use crate::utils::ValueBounds;
+use properties::get::QueryDescription;
 use sys::{
-    DtvProperty, DvbFrontendInfo, FeCaps, FeStatus, PropertyCommands, get_info, get_properties_raw,
-    read_status,
+    DvbFrontendInfo, FeCaps, FeStatus,
+    ioctl::{get_info, get_set_properties_raw, read_status},
+    property::DtvProperty,
 };
 
 //
@@ -61,18 +63,15 @@ impl Frontend {
         FeStatus::from(read_status(self.fd.as_fd()).unwrap())
     }
 
-    pub fn properties(
-        &self,
-        props: &mut [(PropertyCommands, &mut Option<DtvProperty>)],
-    ) -> Option<()> {
+    pub fn properties(&self, props: &mut [QueryDescription]) -> Option<()> {
         // Build requests
         let mut memory = props
             .iter()
-            .map(|(cmd, _)| {
+            .map(|desc| {
                 let mut uninit: MaybeUninit<DtvProperty> = MaybeUninit::uninit();
                 unsafe {
                     let r = uninit.as_mut_ptr().as_mut().unwrap();
-                    r.cmd = *cmd as u32;
+                    r.cmd = desc.command as u32;
                 }
                 uninit
             })
@@ -80,14 +79,20 @@ impl Frontend {
 
         // Send
         let first = memory[0].as_mut_ptr();
-        get_properties_raw(self.fd.as_fd(), props.len(), first)?;
+        get_set_properties_raw(self.fd.as_fd(), false, props.len(), first)?;
 
         // Assume init
         props
             .iter_mut()
             .zip(memory)
-            .for_each(|((_, r), m)| **r = Some(unsafe { m.assume_init() }));
+            .for_each(|(desc, m)| *desc.property = Some(unsafe { m.assume_init() }));
 
+        Some(())
+    }
+
+    // For now, it is convenient to just have a slice of DtvProperty as it already is setup in memory correctly for IOCTL
+    pub fn set_properties(&self, props: &mut [DtvProperty]) -> Option<()> {
+        get_set_properties_raw(self.fd.as_fd(), true, props.len(), props.as_mut_ptr())?;
         Some(())
     }
 }

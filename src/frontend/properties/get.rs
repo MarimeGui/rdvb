@@ -1,18 +1,21 @@
 use std::marker::PhantomData;
 
-use super::sys::{DtvProperty, DtvPropertyUnion, FeDeliverySystem, PropertyCommands};
+use crate::frontend::sys::{
+    FeDeliverySystem,
+    property::{Command, DtvProperty, DtvPropertyUnion},
+};
 
 //
-// -----
+// ----- Common trait and structs
 
 pub trait PropertyQuery {
-    fn associated_command() -> PropertyCommands;
+    fn associated_command() -> Command;
     fn from_property(u: DtvPropertyUnion) -> Self;
 
     /// Create a PendingQuery that can be passed to the properties method of a Frontend.
     ///
     /// After properties() has run, use retrieve() to get the actual value back.
-    fn new() -> PendingQuery<Self>
+    fn query() -> PendingQuery<Self>
     where
         Self: Sized,
     {
@@ -29,6 +32,11 @@ pub struct PendingQuery<T> {
     memory: Option<DtvProperty>,
 }
 
+pub struct QueryDescription<'a> {
+    pub(crate) command: Command,
+    pub(crate) property: &'a mut Option<DtvProperty>,
+}
+
 impl<T: PropertyQuery> PendingQuery<T> {
     pub fn retrieve(self) -> Option<T> {
         let property = self.memory?;
@@ -38,40 +46,34 @@ impl<T: PropertyQuery> PendingQuery<T> {
         Some(T::from_property(property.u))
     }
 
-    pub fn desc(&mut self) -> (PropertyCommands, &mut Option<DtvProperty>) {
-        (T::associated_command(), &mut self.memory)
+    pub fn desc(&mut self) -> QueryDescription {
+        QueryDescription {
+            command: T::associated_command(),
+            property: &mut self.memory,
+        }
     }
 }
 
 //
-// -----
+// ----- Individual queries
 
-/// Use to figure out what transmission systems (DVB-S, DVB-T...) the frontend can work with.
-///
-/// From [https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/fe_property_parameters.html#dtv-enum-delsys]:
-///
-/// "A Multi standard frontend needs to advertise the delivery systems provided.
-/// Applications need to enumerate the provided delivery systems,
-/// before using any other operation with the frontend.
-/// Prior to it’s introduction,
-/// FE_GET_INFO was used to determine a frontend type.
-/// A frontend which provides more than a single delivery system,
-/// FE_GET_INFO doesn’t help much.
-/// Applications which intends to use a multistandard frontend must
-/// enumerate the delivery systems associated with it,
-/// rather than trying to use FE_GET_INFO.
-/// In the case of a legacy frontend,
-/// the result is just the same as with FE_GET_INFO,
-/// but in a more structured format"
 #[derive(Debug)]
-pub struct EnumerateDeliverySystems(pub FeDeliverySystem);
+pub struct EnumerateDeliverySystems(pub Vec<FeDeliverySystem>);
 impl PropertyQuery for EnumerateDeliverySystems {
-    fn associated_command() -> PropertyCommands {
-        PropertyCommands::EnumDelSys
+    fn associated_command() -> Command {
+        Command::DTV_ENUM_DELSYS
     }
 
     fn from_property(u: DtvPropertyUnion) -> Self {
-        Self(FeDeliverySystem(unsafe { u.data }))
+        let len = unsafe { u.buffer.len } as usize;
+
+        let mut systems = Vec::with_capacity(len);
+        for i in 0..len {
+            let data = unsafe { u.buffer.data[i] };
+            systems.push(FeDeliverySystem::try_from(data).unwrap());
+        }
+
+        EnumerateDeliverySystems(systems)
     }
 }
 
@@ -80,8 +82,8 @@ impl PropertyQuery for EnumerateDeliverySystems {
 #[derive(Debug)]
 pub struct Frequency(pub u32);
 impl PropertyQuery for Frequency {
-    fn associated_command() -> PropertyCommands {
-        PropertyCommands::Frequency
+    fn associated_command() -> Command {
+        Command::DTV_FREQUENCY
     }
 
     fn from_property(u: DtvPropertyUnion) -> Self {
@@ -100,8 +102,8 @@ pub enum SignalStrength {
     Relative(u64),
 }
 impl PropertyQuery for SignalStrength {
-    fn associated_command() -> PropertyCommands {
-        PropertyCommands::StatSignalStrength
+    fn associated_command() -> Command {
+        Command::DTV_STAT_SIGNAL_STRENGTH
     }
 
     fn from_property(u: DtvPropertyUnion) -> Self {
