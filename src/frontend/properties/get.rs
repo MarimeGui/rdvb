@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::frontend::sys::{
-    FeDeliverySystem,
+    FeDeliverySystem, FeModulation,
     property::{Command, DtvProperty, DtvPropertyUnion, DtvStatsValue, FeCapScaleParams},
 };
 
@@ -124,6 +124,22 @@ impl PropertyQuery for Frequency {
 }
 
 // TODO: Return correct UOM when given system ?
+
+// ---
+
+#[derive(Debug)]
+pub struct Modulation(pub FeModulation);
+impl PropertyQuery for Modulation {
+    fn associated_command() -> Command {
+        Command::DTV_MODULATION
+    }
+
+    fn from_property(u: DtvPropertyUnion) -> Self {
+        Self(unsafe {
+            FeModulation::try_from(u.data).expect("unexpected value for modulation type")
+        })
+    }
+}
 
 // ---
 

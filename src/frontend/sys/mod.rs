@@ -134,7 +134,7 @@ impl FeCaps {}
 ///
 /// (from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-header.html#c.fe_delivery_system))
 #[repr(C)]
-#[derive(Debug, Copy, Clone, TryFromDiscriminant)]
+#[derive(Debug, Copy, Clone, TryFromDiscriminant, PartialEq, Eq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum FeDeliverySystem {
     /// Undefined standard. Generally, indicates an error
@@ -183,7 +183,7 @@ pub enum FeDeliverySystem {
 ///
 /// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/frontend-header.html#c.fe_modulation))
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, TryFromDiscriminant)]
 #[allow(non_camel_case_types)]
 pub enum FeModulation {
     /// QPSK modulation
