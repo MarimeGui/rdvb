@@ -66,15 +66,15 @@ pub enum Command {
     ///
     /// 1. For ISDB-Tsb, the bandwidth can vary depending on the number of connected segments.\
     ///    It can be easily derived from other parameters (DTV_ISDBT_SB_SEGMENT_IDX, DTV_ISDBT_SB_SEGMENT_COUNT).
-    /// 2. On Satellite and Cable delivery systems, the bandwidth depends on the symbol rate. So, the Kernel will silently ignore any setting [DTV_BANDWIDTH_HZ](BandwidthHz). I will however fill it back with a bandwidth estimation.\
-    ///    Such bandwidth estimation takes into account the symbol rate set with [DTV_SYMBOL_RATE](SymbolRate), and the rolloff factor, with is fixed for DVB-C and DVB-S.\
-    ///    For DVB-S2, the rolloff should also be set via [DTV_ROLLOFF](Rolloff).
+    /// 2. On Satellite and Cable delivery systems, the bandwidth depends on the symbol rate. So, the Kernel will silently ignore any setting [DTV_BANDWIDTH_HZ](crate::frontend::properties::set::BandwidthHz). I will however fill it back with a bandwidth estimation.\
+    ///    Such bandwidth estimation takes into account the symbol rate set with [DTV_SYMBOL_RATE](crate::frontend::properties::set::SymbolRate), and the rolloff factor, with is fixed for DVB-C and DVB-S.\
+    ///    For DVB-S2, the rolloff should also be set via [DTV_ROLLOFF](crate::frontend::properties::set::Rolloff).
     ///
     /// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/fe_property_parameters.html#dtv-bandwidth-hz))
     DTV_BANDWIDTH_HZ = 5,
     /// Specifies if the frontend should do spectral inversion or not.
     ///
-    /// The acceptable values are defined by [fe_spectral_inversion](FeSpectralInversion).
+    /// The acceptable values are defined by [fe_spectral_inversion](super::FeSpectralInversion).
     ///
     /// (taken from [official docs](https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/dvb/fe_property_parameters.html#dtv-inversion))
     DTV_INVERSION = 6,

@@ -37,6 +37,7 @@ pub struct DvbFrontendInfo {
 
 // TODO: Replace with https://github.com/meithecatte/enumflags2 or similar
 // TODO: Is FeStatus actually u32 ?
+// TODO: This really isn't sys anymore. Either I can re-export the type or move the entire thing up
 pub struct FeStatus(u32);
 
 impl From<c_uint> for FeStatus {
