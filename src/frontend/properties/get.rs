@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{collections::HashSet, marker::PhantomData};
 
 use crate::frontend::sys::{
     FeDeliverySystem, FeModulation,
@@ -90,7 +90,7 @@ impl StatResult {
 // ----- Individual queries
 
 #[derive(Debug)]
-pub struct EnumerateDeliverySystems(pub Vec<FeDeliverySystem>);
+pub struct EnumerateDeliverySystems(pub HashSet<FeDeliverySystem>);
 impl PropertyQuery for EnumerateDeliverySystems {
     fn associated_command() -> Command {
         Command::DTV_ENUM_DELSYS
@@ -99,10 +99,10 @@ impl PropertyQuery for EnumerateDeliverySystems {
     fn from_property(u: DtvPropertyUnion) -> Self {
         let len = unsafe { u.buffer.len } as usize;
 
-        let mut systems = Vec::with_capacity(len);
+        let mut systems = HashSet::with_capacity(len);
         for i in 0..len {
             let data = unsafe { u.buffer.data[i] };
-            systems.push(FeDeliverySystem::try_from(data).unwrap());
+            systems.insert(FeDeliverySystem::try_from(data).unwrap());
         }
 
         EnumerateDeliverySystems(systems)
