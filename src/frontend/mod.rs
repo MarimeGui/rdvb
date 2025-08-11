@@ -2,7 +2,7 @@ pub mod properties;
 pub mod sys;
 
 use std::{
-    collections::HashSet,
+    collections::BTreeSet,
     ffi::{CStr, c_char},
     fs::File,
     mem::MaybeUninit,
@@ -160,7 +160,7 @@ impl Frontend {
     /// Return a list of all delivery systems (DVB-T, DVB-T2, SVB-S...) this frontend supports.
     ///
     /// This is equivalent to using `properties` with `EnumerateDeliverySystems` property query. This function is for convenience.
-    pub fn list_systems(&mut self) -> Option<HashSet<FeDeliverySystem>> {
+    pub fn list_systems(&mut self) -> Option<BTreeSet<FeDeliverySystem>> {
         let mut enumerate_systems = EnumerateDeliverySystems::query();
         self.properties(&mut [enumerate_systems.desc()]);
         Some(enumerate_systems.retrieve().unwrap().0)
