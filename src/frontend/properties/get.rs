@@ -1,4 +1,7 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::{
+    collections::BTreeSet,
+    marker::PhantomData,
+};
 
 use crate::frontend::sys::{
     FeDeliverySystem, FeModulation,
@@ -59,7 +62,7 @@ pub enum StatResult {
     Count(u64),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ValueStat {
     Decibel(i64),
     Relative(u64),
@@ -86,11 +89,28 @@ impl StatResult {
     }
 }
 
+impl PartialOrd for ValueStat {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (ValueStat::Decibel(_a), ValueStat::Decibel(_b)) => {
+                todo!("no idea how the dB info is encoded")
+            }
+            (ValueStat::Relative(a), ValueStat::Relative(b)) => Some(a.cmp(b)),
+            _ => None,
+        }
+    }
+}
+
 //
 // ----- Individual queries
 
+/// List of supported delivery systems by an adapter.
+///
+/// This is using a BTreeSet for two reasons :
+/// - Ensure uniqueness of each system,
+/// - When iterating, do older systems first as they're most likely to have the most channels, making newer systems faster to scan.
 #[derive(Debug)]
-pub struct EnumerateDeliverySystems(pub HashSet<FeDeliverySystem>);
+pub struct EnumerateDeliverySystems(pub BTreeSet<FeDeliverySystem>);
 impl PropertyQuery for EnumerateDeliverySystems {
     fn associated_command() -> Command {
         Command::DTV_ENUM_DELSYS
@@ -99,7 +119,7 @@ impl PropertyQuery for EnumerateDeliverySystems {
     fn from_property(u: DtvPropertyUnion) -> Self {
         let len = unsafe { u.buffer.len } as usize;
 
-        let mut systems = HashSet::with_capacity(len);
+        let mut systems = BTreeSet::new();
         for i in 0..len {
             let data = unsafe { u.buffer.data[i] };
             systems.insert(FeDeliverySystem::try_from(data).unwrap());
@@ -143,7 +163,7 @@ impl PropertyQuery for Modulation {
 
 // ---
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SignalStrength(pub Option<ValueStat>);
 impl PropertyQuery for SignalStrength {
     fn associated_command() -> Command {
@@ -162,6 +182,17 @@ impl PropertyQuery for SignalStrength {
         match res {
             StatResult::Value(value_stat) => Self(Some(value_stat)),
             StatResult::Count(_) => panic!("expected a value, not a count"),
+        }
+    }
+}
+
+impl PartialOrd for SignalStrength {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self.0, other.0) {
+            (None, None) => None,
+            (None, Some(_)) => Some(std::cmp::Ordering::Less),
+            (Some(_), None) => Some(std::cmp::Ordering::Greater),
+            (Some(a), Some(b)) => a.partial_cmp(&b),
         }
     }
 }
