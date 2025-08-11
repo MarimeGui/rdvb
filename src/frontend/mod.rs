@@ -15,7 +15,7 @@ use std::{
 use crate::{
     frontend::{
         properties::{
-            get::{EnumerateDeliverySystems, PropertyQuery},
+            get::{EnumerateDeliverySystems, PropertyQuery, SignalStrength},
             set::{BandwidthHz, DeliverySystem, Frequency, SetPropertyQuery, Tune},
         },
         sys::FeDeliverySystem,
@@ -164,6 +164,15 @@ impl Frontend {
         let mut enumerate_systems = EnumerateDeliverySystems::query();
         self.properties(&mut [enumerate_systems.desc()]);
         Some(enumerate_systems.retrieve().unwrap().0)
+    }
+
+    /// Get a reading of the strength of the signal being received.
+    ///
+    /// This may be useful to compare two different frequencies over which the same transponder is received and choose the best one.
+    pub fn signal_strength(&mut self) -> Result<SignalStrength, ()> {
+        let mut strength = SignalStrength::query();
+        self.properties(&mut [strength.desc()]).ok_or(())?;
+        strength.retrieve().ok_or(())
     }
 }
 
