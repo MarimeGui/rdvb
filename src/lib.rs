@@ -31,6 +31,8 @@
 //! Instead, the user now opens a file descriptor to the demux file of the adapter.
 //! From there, they can set a filter that will selectively choose specific packets to send over to the program.
 //!
+
+pub mod conf;
 pub mod demux;
 pub mod error;
 pub mod frontend;

@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use nix::errno::Errno;
 use thiserror::Error;
 
@@ -46,4 +48,19 @@ impl From<Errno> for DmxSetPesFilterError {
             e => DmxSetPesFilterError::Undefined(e),
         }
     }
+}
+
+//
+// -----
+
+#[derive(Error, Debug)]
+pub enum VdrParseError {
+    #[error("the channel definition line is missing at least 1 column")]
+    MissingColumn,
+    #[error("expected an int for field contents")]
+    IntParse(ParseIntError),
+    #[error("a value outside of accepted variants was found as parameter data")]
+    UnexpectedParameterValue,
+    #[error("an unknown parameter was found")]
+    UnknownParameter,
 }
