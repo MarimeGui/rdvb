@@ -63,16 +63,19 @@ ioctl_write_ptr!(dmx_remove_pid, IOCTL_TYPE, DMX_REMOVE_PID, u16);
 ///
 /// This ioctl call is used to start the actual filtering operation defined via the ioctl calls DMX_SET_FILTER or DMX_SET_PES_FILTER.
 pub fn start(fd: BorrowedFd) -> Result<(), DmxStartError> {
+    // SAFETY: The argument is always a valid file descriptor. There should be no conditions or unhandled side-effects.
     unsafe { dmx_start(fd.as_raw_fd()) }.map_err(DmxStartError::from)?;
     Ok(())
 }
 
 pub fn stop(fd: BorrowedFd) -> Result<(), Errno> {
+    // SAFETY: The argument is always a valid file descriptor. There should be no conditions or unhandled side-effects.
     unsafe { dmx_stop(fd.as_raw_fd()) }?;
     Ok(())
 }
 
 pub fn set_filter(fd: BorrowedFd, params: &DmxSctFilterParams) -> Result<(), Errno> {
+    // SAFETY: The argument is always a valid file descriptor and C-compatible DmxSctFilterParams. There should be no conditions or unhandled side-effects.
     unsafe { dmx_set_filter(fd.as_raw_fd(), params) }?;
     Ok(())
 }
@@ -81,6 +84,7 @@ pub fn set_pes_filter(
     fd: BorrowedFd,
     params: &DmxPesFilterParams,
 ) -> Result<(), DmxSetPesFilterError> {
+    // SAFETY: FD is always valid, DmxPesFilterParams is C-compatible and always valid. There should be no conditions or unhandled side-effects.
     unsafe { dmx_set_pes_filter(fd.as_raw_fd(), params) }.map_err(DmxSetPesFilterError::from)?;
     Ok(())
 }
@@ -90,6 +94,7 @@ pub fn set_pes_filter(
 /// This ioctl call allows to add multiple PIDs to a transport stream filter previously
 /// set up with DMX_SET_PES_FILTER and output equal to DMX_OUT_TSDEMUX_TAP.
 pub fn add_pid(fd: BorrowedFd, pid: u16) -> Result<(), Errno> {
+    // SAFETY: FD is always valid, PID can be any u16. There should be no conditions or unhandled side-effects.
     unsafe { dmx_add_pid(fd.as_raw_fd(), &pid) }?;
     Ok(())
 }
@@ -100,6 +105,7 @@ pub fn add_pid(fd: BorrowedFd, pid: u16) -> Result<(), Errno> {
 /// e. g. a filter previously set up with output equal to DMX_OUT_TSDEMUX_TAP,
 /// created via either DMX_SET_PES_FILTER or DMX_ADD_PID.
 pub fn remove_pid(fd: BorrowedFd, pid: u16) -> Result<(), Errno> {
+    // SAFETY: FD is always valid, PID can be any u16. There should be no conditions or unhandled side-effects.
     unsafe { dmx_remove_pid(fd.as_raw_fd(), &pid) }?;
     Ok(())
 }

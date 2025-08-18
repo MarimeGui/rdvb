@@ -4,7 +4,9 @@ use std::{
     os::fd::{AsRawFd, BorrowedFd},
 };
 
-use nix::{ioctl_read, ioctl_write_ptr};
+use nix::{errno::Errno, ioctl_read, ioctl_write_ptr};
+
+use crate::error::PropertyError;
 
 use super::{
     DTV_IOCTL_MAX_MSGS, DvbFrontendInfo,
@@ -31,19 +33,20 @@ ioctl_read!(fe_get_property, FE_TYPE, FE_GET_PROPERTY, DtvProperties);
 //
 // ----- Simplified IOCTLs
 
-// TODO: Return error
-pub fn get_info(fd: BorrowedFd) -> Option<DvbFrontendInfo> {
+pub fn get_info(fd: BorrowedFd) -> Result<DvbFrontendInfo, Errno> {
     let mut info = MaybeUninit::uninit();
-    unsafe { fe_get_info(fd.as_raw_fd(), info.as_mut_ptr()) }.unwrap();
+    unsafe { fe_get_info(fd.as_raw_fd(), info.as_mut_ptr()) }?;
+    // SAFETY: If fe_get_info did not throw an error, memory should now be initialized.
     let info = unsafe { info.assume_init() };
-    Some(info)
+    Ok(info)
 }
 
-pub fn read_status(fd: BorrowedFd) -> Option<c_uint> {
+pub fn read_status(fd: BorrowedFd) -> Result<c_uint, Errno> {
     let mut status = MaybeUninit::uninit();
-    unsafe { fe_read_status(fd.as_raw_fd(), status.as_mut_ptr()) }.unwrap();
+    unsafe { fe_read_status(fd.as_raw_fd(), status.as_mut_ptr()) }?;
+    // SAFETY: If fe_read_status did not throw an error, memory should now be initialized.
     let status = unsafe { status.assume_init() };
-    Some(status)
+    Ok(status)
 }
 
 pub fn get_set_properties_raw(
@@ -51,13 +54,13 @@ pub fn get_set_properties_raw(
     set: bool,
     count: usize,
     ptr: *mut DtvProperty,
-) -> Option<()> {
+) -> Result<(), PropertyError> {
     if count == 0 {
-        return Some(());
+        return Ok(());
     }
 
     if count > DTV_IOCTL_MAX_MSGS {
-        return None;
+        return Err(PropertyError::TooManyParameters);
     }
 
     let mut properties = DtvProperties {
@@ -66,10 +69,12 @@ pub fn get_set_properties_raw(
     };
 
     if set {
-        unsafe { fe_set_property(fd.as_raw_fd(), &mut properties as *mut DtvProperties) }.unwrap();
+        unsafe { fe_set_property(fd.as_raw_fd(), &mut properties as *mut DtvProperties) }
+            .map_err(PropertyError::SetProperty)?;
     } else {
-        unsafe { fe_get_property(fd.as_raw_fd(), &mut properties as *mut DtvProperties) }.unwrap();
+        unsafe { fe_get_property(fd.as_raw_fd(), &mut properties as *mut DtvProperties) }
+            .map_err(PropertyError::GetProperty)?;
     }
 
-    Some(())
+    Ok(())
 }

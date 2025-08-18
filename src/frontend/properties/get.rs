@@ -1,11 +1,11 @@
-use std::{
-    collections::BTreeSet,
-    marker::PhantomData,
-};
+use std::{collections::BTreeSet, marker::PhantomData};
 
-use crate::frontend::sys::{
-    FeDeliverySystem, FeModulation,
-    property::{Command, DtvProperty, DtvPropertyUnion, DtvStatsValue, FeCapScaleParams},
+use crate::{
+    error::DtvError,
+    frontend::sys::{
+        FeDeliverySystem, FeModulation,
+        property::{Command, DtvProperty, DtvPropertyUnion, DtvStatsValue, FeCapScaleParams},
+    },
 };
 
 //
@@ -41,12 +41,12 @@ pub struct QueryDescription<'a> {
 }
 
 impl<T: PropertyQuery> PendingQuery<T> {
-    pub fn retrieve(self) -> Option<T> {
-        let property = self.memory?;
+    pub fn retrieve(self) -> Result<T, DtvError> {
+        let property = self.memory.ok_or(DtvError::NotRan)?;
         if property.result < 0 {
-            return None;
+            return Err(DtvError::Reported(property.result));
         }
-        Some(T::from_property(property.u))
+        Ok(T::from_property(property.u))
     }
 
     pub fn desc(&mut self) -> QueryDescription {
@@ -73,16 +73,19 @@ impl StatResult {
         match scale {
             FeCapScaleParams::FE_SCALE_NOT_AVAILABLE => None,
             FeCapScaleParams::FE_SCALE_DECIBEL => {
+                // SAFETY: This is always safe, as the union all interpretations of the union would yield a valid int.
                 Some(StatResult::Value(ValueStat::Decibel(unsafe {
                     raw_value.svalue
                 })))
             }
             FeCapScaleParams::FE_SCALE_RELATIVE => {
+                // SAFETY: This is always safe, as the union all interpretations of the union would yield a valid int.
                 Some(StatResult::Value(ValueStat::Relative(unsafe {
                     raw_value.uvalue
                 })))
             }
             FeCapScaleParams::FE_SCALE_COUNTER => {
+                // SAFETY: This is always safe, as the union all interpretations of the union would yield a valid int.
                 Some(StatResult::Count(unsafe { raw_value.uvalue }))
             }
         }
