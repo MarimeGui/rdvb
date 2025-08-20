@@ -1,43 +1,6 @@
-//! VDR-style configuration import/export
-
-use std::{num::ParseIntError, str::FromStr};
+use std::str::FromStr;
 
 use crate::error::VdrParseError;
-
-//
-// -----
-
-/// A single line of a VDR-style configuration file.
-///
-/// Example taken from [`man`](https://manpages.ubuntu.com/manpages/xenial/man5/vdr.5.html):
-/// ```RTL Television,RTL;RTL World:12187:hC34M2O0S0:S19.2E:27500:163=2:104=deu;106=deu:105:0:12003:1:1089:0```
-#[derive(Debug, Clone)]
-pub struct ChannelDefinition {
-    pub name: String,
-    // pub short_name: String,
-    pub bouquet: String,
-    pub frequency: u32,
-    pub parameters: Parameters,
-    // Always 'T' for DVB-T and T2
-    pub source: String,
-    pub symbol_rate: u32,
-    pub video_pid: VideoPID,
-    pub audio_pid: AudioPIDList,
-    pub teletext_pid: TeletextPIDList,
-    // `0` for free-to-air
-    pub conditional_access: String,
-    // program_number in PMT, found in NIT
-    pub service_id: u16,
-    // Found in NIT
-    pub network_id: u16,
-    // Found in NIT
-    pub transport_stream_id: u16,
-    // `0` for television
-    pub radio_id: u16,
-}
-
-//
-// -----
 
 #[derive(Debug, Clone, Default)]
 pub struct Parameters {
@@ -353,311 +316,215 @@ impl FromStr for Parameters {
     }
 }
 
-//
-// -----
-
-#[derive(Debug, Clone)]
-pub struct VideoPID {
-    pub pcr_pid: u16,
-    pub video_pid: Option<u16>,
-    pub video_mode: Option<u16>,
-}
-
-impl FromStr for VideoPID {
-    type Err = ParseIntError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s.split_once('+') {
-            Some((vpid, rest)) => {
-                match rest.split_once('=') {
-                    // Separated Video PID, PCR PID and Video mode (like "164+17=27")
-                    Some((pcr_pid, video_mode)) => VideoPID {
-                        pcr_pid: pcr_pid.parse()?,
-                        video_pid: Some(vpid.parse()?),
-                        video_mode: Some(video_mode.parse()?),
-                    },
-                    // Separate Video PID and PCR PID (like "164+17")
-                    None => VideoPID {
-                        pcr_pid: vpid.parse()?,
-                        video_pid: Some(rest.parse()?),
-                        video_mode: None,
-                    },
-                }
-            }
-            None => {
-                match s.split_once('=') {
-                    // Separated PCR PID and Video mode (like "164=27")
-                    Some((pcr_pid, video_mode)) => VideoPID {
-                        pcr_pid: pcr_pid.parse()?,
-                        video_pid: None,
-                        video_mode: Some(video_mode.parse()?),
-                    },
-                    // Only PCR PID (like "164")
-                    None => VideoPID {
-                        pcr_pid: s.parse()?,
-                        video_pid: None,
-                        video_mode: None,
-                    },
-                }
-            }
-        })
-    }
-}
-
-//
-// -----
-
-#[derive(Debug, Clone)]
-pub struct AudioPIDList {
-    pub regular_pids: Vec<AudioPID>,
-    pub dolby_pids: Vec<AudioPID>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AudioPID {
-    pub pid: u16,
-    pub language_code: String,
-    pub second_language_code: String,
-    pub audio_type: Option<u16>,
-}
-
-impl AudioPIDList {
-    fn parse_part(s: &str) -> Result<Vec<AudioPID>, ParseIntError> {
-        let mut entries = Vec::new();
-        for one_pid in s.split(',') {
-            entries.push(one_pid.parse()?);
+impl Bandwidth {
+    pub fn format(self) -> &'static str {
+        match self {
+            Bandwidth::_1712kHz => "B1712",
+            Bandwidth::_5MHz => "B5",
+            Bandwidth::_6Mhz => "B6",
+            Bandwidth::_7MHz => "B7",
+            Bandwidth::_8MHz => "B8",
+            Bandwidth::_10MHz => "B10",
         }
-        Ok(entries)
     }
 }
 
-impl FromStr for AudioPIDList {
-    type Err = ParseIntError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s.split_once(';') {
-            Some((regular, dolby)) => {
-                if regular == "0" {
-                    AudioPIDList {
-                        regular_pids: vec![],
-                        dolby_pids: Self::parse_part(dolby)?,
-                    }
-                } else {
-                    AudioPIDList {
-                        regular_pids: Self::parse_part(regular)?,
-                        dolby_pids: Self::parse_part(dolby)?,
-                    }
-                }
-            }
-            None => AudioPIDList {
-                regular_pids: Self::parse_part(s)?,
-                dolby_pids: vec![],
-            },
-        })
-    }
-}
-
-impl FromStr for AudioPID {
-    type Err = ParseIntError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Try splitting off the audio type first
-        let (rest, audio_type) = match s.split_once('@') {
-            Some((rest, audio_type)) => (rest, Some(audio_type.parse()?)),
-            None => (s, None),
-        };
-
-        // Try splitting the language
-        let (pid, languages) = match rest.split_once('=') {
-            Some((pid, langauges)) => (pid.parse()?, Some(langauges)),
-            None => (rest.parse()?, None),
-        };
-
-        // Finally, if there is a language string, try splitting it
-        let (language_code, second_language_code) = match languages {
-            Some(l) => match l.split_once('+') {
-                Some((first, second)) => (first.to_string(), second.to_string()),
-                None => (l.to_string(), String::new()),
-            },
-            None => (String::new(), String::new()),
-        };
-
-        Ok(AudioPID {
-            pid,
-            language_code,
-            second_language_code,
-            audio_type,
-        })
-    }
-}
-
-//
-// -----
-
-#[derive(Debug, Clone, Default)]
-pub struct TeletextPIDList {
-    pub teletext: Vec<u16>,
-    pub subtitles: Vec<SubtitlePID>,
-}
-
-#[derive(Debug, Clone)]
-pub struct SubtitlePID {
-    pub pid: u16,
-    pub language: String,
-}
-
-impl TeletextPIDList {
-    fn parse_teletext(s: &str) -> Result<Vec<u16>, ParseIntError> {
-        let mut teletext = Vec::new();
-        for p in s.split(',') {
-            teletext.push(p.parse()?);
+impl CodeRate {
+    pub fn partial_format(self) -> &'static str {
+        match self {
+            CodeRate::NoHierarchy => "0",
+            CodeRate::_1_2 => "12",
+            CodeRate::_2_3 => "23",
+            CodeRate::_3_4 => "34",
+            CodeRate::_3_5 => "35",
+            CodeRate::_4_5 => "45",
+            CodeRate::_5_6 => "56",
+            CodeRate::_6_7 => "67",
+            CodeRate::_7_8 => "78",
+            CodeRate::_8_9 => "89",
+            CodeRate::_9_10 => "910",
         }
-        Ok(teletext)
-    }
-
-    fn parse_subtitles(s: &str) -> Result<Vec<SubtitlePID>, ParseIntError> {
-        let mut subtitles = Vec::new();
-        for p in s.split(',') {
-            subtitles.push(p.parse()?);
-        }
-        Ok(subtitles)
     }
 }
 
-impl FromStr for TeletextPIDList {
-    type Err = ParseIntError;
+impl GuardInterval {
+    pub fn format(self) -> &'static str {
+        match self {
+            GuardInterval::_1_4 => "G4",
+            GuardInterval::_1_8 => "G8",
+            GuardInterval::_1_16 => "G16",
+            GuardInterval::_1_32 => "G32",
+            GuardInterval::_1_128 => "G128",
+            GuardInterval::_19_128 => "G19128",
+            GuardInterval::_19_256 => "G19256",
+        }
+    }
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "0" {
-            return Ok(TeletextPIDList::default());
+impl Polarization {
+    pub fn format(self) -> char {
+        match self {
+            Polarization::Horizontal => 'H',
+            Polarization::CircularLeft => 'L',
+            Polarization::CircularRight => 'R',
+            Polarization::Vertical => 'V',
+        }
+    }
+}
+
+impl Modulation {
+    pub fn format(self) -> &'static str {
+        match self {
+            Modulation::Qpsk => "M2",
+            Modulation::_8Psk => "M5",
+            Modulation::_16Apsk => "M6",
+            Modulation::_32Apsk => "M7",
+            Modulation::Vsb8 => "M10",
+            Modulation::Vsb16 => "M11",
+            Modulation::Dqpsk => "M12",
+            Modulation::Qam16 => "M16",
+            Modulation::Qam32 => "M32",
+            Modulation::Qam64 => "M64",
+            Modulation::Qam128 => "M128",
+            Modulation::Qam256 => "M256",
+            Modulation::Auto => "M999",
+        }
+    }
+}
+
+impl PilotMode {
+    pub fn format(self) -> &'static str {
+        match self {
+            PilotMode::Off => "N0",
+            PilotMode::On => "N1",
+            PilotMode::Auto => "N999",
+        }
+    }
+}
+
+impl RollOff {
+    pub fn format(self) -> &'static str {
+        match self {
+            RollOff::None => "O0",
+            RollOff::_0_20 => "O20",
+            RollOff::_0_25 => "O25",
+            RollOff::_0_35 => "O35",
+        }
+    }
+}
+
+impl DeliverySystemGeneration {
+    pub fn format(self) -> &'static str {
+        match self {
+            DeliverySystemGeneration::FirstGeneration => "S0",
+            DeliverySystemGeneration::SecondGeneration => "S1",
+        }
+    }
+}
+
+impl TransmissionMode {
+    pub fn format(self) -> &'static str {
+        match self {
+            TransmissionMode::_1k => "T1",
+            TransmissionMode::_2k => "T2",
+            TransmissionMode::_4k => "T4",
+            TransmissionMode::_8k => "T8",
+            TransmissionMode::_16k => "T16",
+            TransmissionMode::_32k => "T32",
+        }
+    }
+}
+
+impl SingleMultipleInput {
+    pub fn format(self) -> &'static str {
+        match self {
+            SingleMultipleInput::SingleInput => "X0",
+            SingleMultipleInput::MultipleInput => "X1",
+        }
+    }
+}
+
+impl Hierarchy {
+    pub fn format(self) -> &'static str {
+        match self {
+            Hierarchy::Off => "Y0",
+            Hierarchy::TwoStreams => "Y1",
+            Hierarchy::_2 => "Y2",
+            Hierarchy::_4 => "Y4",
+        }
+    }
+}
+
+impl Parameters {
+    pub fn format(&self) -> String {
+        let mut text = String::new();
+
+        if let Some(bandwidth) = self.bandwidth {
+            text.push_str(bandwidth.format());
         }
 
-        Ok(match s.split_once(';') {
-            Some((teletext, subtitles)) => {
-                if teletext == "0" {
-                    // Just subtitles
-                    TeletextPIDList {
-                        teletext: vec![],
-                        subtitles: Self::parse_subtitles(subtitles)?,
-                    }
-                } else {
-                    // Both teletext and subtitles
-                    TeletextPIDList {
-                        teletext: Self::parse_teletext(teletext)?,
-                        subtitles: Self::parse_subtitles(subtitles)?,
-                    }
-                }
+        if let Some(code_rate) = self.code_rate_high_priority {
+            text.push('C');
+            text.push_str(code_rate.partial_format());
+        }
+
+        if let Some(code_rate) = self.code_rate_low_priority {
+            text.push('D');
+            text.push_str(code_rate.partial_format());
+        }
+
+        if let Some(guard_interval) = self.guard_interval {
+            text.push_str(guard_interval.format());
+        }
+
+        if let Some(polarization) = self.polarization {
+            text.push(polarization.format());
+        }
+
+        if let Some(inversion) = self.inversion {
+            if inversion {
+                text.push_str("I1")
+            } else {
+                text.push_str("I0")
             }
-            None => {
-                // Just teletext
-                TeletextPIDList {
-                    teletext: Self::parse_teletext(s)?,
-                    subtitles: vec![],
-                }
-            }
-        })
-    }
-}
+        }
 
-impl FromStr for SubtitlePID {
-    type Err = ParseIntError;
+        if let Some(modulation) = self.modulation {
+            text.push_str(modulation.format());
+        }
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s.split_once('=') {
-            Some((pid, lang)) => SubtitlePID {
-                pid: pid.parse()?,
-                language: lang.to_string(),
-            },
-            None => SubtitlePID {
-                pid: s.parse()?,
-                language: String::new(),
-            },
-        })
-    }
-}
+        if let Some(pilot_mode) = self.pilot_mode {
+            text.push_str(pilot_mode.format());
+        }
 
-//
-// -----
+        if let Some(roll_off) = self.roll_off {
+            text.push_str(roll_off.format());
+        }
 
-impl FromStr for ChannelDefinition {
-    type Err = VdrParseError;
+        if let Some(id) = self.stream_id {
+            text.push_str(&format!("P{}", id));
+        }
 
-    fn from_str(line: &str) -> Result<Self, Self::Err> {
-        let mut iter = line.split(':');
+        if let Some(id) = self.t2_system_id {
+            text.push_str(&format!("Q{}", id));
+        }
 
-        let name_bouquet = iter.next().ok_or(VdrParseError::MissingColumn)?;
-        let frequency = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let parameters = iter.next().ok_or(VdrParseError::MissingColumn)?.parse()?;
-        let source = iter.next().ok_or(VdrParseError::MissingColumn)?.to_string();
-        let symbol_rate = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .to_string()
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let video_pid = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let audio_pid = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let teletext_pid = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let conditional_access = iter.next().ok_or(VdrParseError::MissingColumn)?.to_string();
-        let service_id = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let network_id = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let transport_stream_id = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
-        let radio_id = iter
-            .next()
-            .ok_or(VdrParseError::MissingColumn)?
-            .parse()
-            .map_err(VdrParseError::IntParse)?;
+        if let Some(generation) = self.delivery_system_generation {
+            text.push_str(generation.format());
+        }
 
-        // Separate name and bouquet
-        let (name, bouquet) = if let Some((n, b)) = name_bouquet.rsplit_once(';') {
-            (n.replace("|", ":"), b.to_string())
-        } else {
-            (name_bouquet.to_string(), String::new())
-        };
+        if let Some(mode) = self.transmission_mode {
+            text.push_str(mode.format());
+        }
 
-        Ok(ChannelDefinition {
-            name,
-            bouquet,
-            frequency,
-            parameters,
-            source,
-            symbol_rate,
-            video_pid,
-            audio_pid,
-            teletext_pid,
-            conditional_access,
-            service_id,
-            network_id,
-            transport_stream_id,
-            radio_id,
-        })
+        if let Some(siso_miso) = self.input_mode {
+            text.push_str(siso_miso.format());
+        }
+
+        if let Some(hierarchy) = self.hierarchy {
+            text.push_str(hierarchy.format());
+        }
+
+        text
     }
 }
