@@ -18,15 +18,15 @@ impl Demux {
         self.file.read(buf)
     }
 
-    pub fn start(&self) {
+    pub fn start(&mut self) {
         start(self.file.as_fd()).unwrap()
     }
 
-    pub fn stop(&self) {
+    pub fn stop(&mut self) {
         stop(self.file.as_fd()).unwrap()
     }
 
-    pub fn set_filter(&self, filter: &DmxSctFilterParams) {
+    pub fn set_filter(&mut self, filter: &DmxSctFilterParams) {
         set_filter(self.file.as_fd(), filter).unwrap()
     }
 }
