@@ -1,17 +1,17 @@
 //! VDR-style configuration import/export
 
-pub mod parameters;
-pub mod video_pid;
 pub mod audio_pid;
+pub mod parameters;
 pub mod teletext_pid;
+pub mod video_pid;
 
-use std::{str::FromStr};
+use std::str::FromStr;
 
 use crate::error::VdrParseError;
-use parameters::Parameters;
-use video_pid::VideoPID;
 use audio_pid::AudioPIDList;
+use parameters::Parameters;
 use teletext_pid::TeletextPIDList;
+use video_pid::VideoPID;
 
 //
 // -----
