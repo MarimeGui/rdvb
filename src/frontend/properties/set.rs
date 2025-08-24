@@ -61,7 +61,7 @@ impl SetPropertyQuery for Modulation {
 
 // --
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BandwidthHz {
     _1_172MHz,
     _5MHz,
