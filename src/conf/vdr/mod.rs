@@ -64,6 +64,7 @@ pub struct ChannelDefinition {
     pub audio_pid: AudioPIDList,
     pub teletext_pid: TeletextPIDList,
     // `0` for free-to-air
+    // TODO: Proper structure
     pub conditional_access: String,
     // program_number in PMT, found in NIT
     pub service_id: u16,
@@ -171,12 +172,18 @@ impl FromStr for ChannelDefinition {
 
 impl ChannelDefinition {
     pub fn format(&self) -> String {
-        // TODO: Replacement characters
+        // TODO: Check on more examples
+        let name = if !self.name.is_empty() {
+            self.name.replace(':', "|")
+        } else {
+            // Just in case the name is empty, should add a random number to make sure there are no two times the same name
+            "<empty>".to_string()
+        };
         let name = match (!self.short_name.is_empty(), !self.bouquet.is_empty()) {
-            (false, false) => &self.name,
-            (false, true) => &format!("{};{}", self.name, self.bouquet),
-            (true, false) => &format!("{},{}", self.name, self.short_name),
-            (true, true) => &format!("{},{};{}", self.name, self.short_name, self.bouquet),
+            (false, false) => &name,
+            (false, true) => &format!("{};{}", name, self.bouquet),
+            (true, false) => &format!("{},{}", name, self.short_name),
+            (true, true) => &format!("{},{};{}", name, self.short_name, self.bouquet),
         };
 
         format!(

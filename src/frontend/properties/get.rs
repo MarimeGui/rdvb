@@ -8,6 +8,8 @@ use crate::{
     },
 };
 
+// Complete list can be found in linux/drivers/media/dvb-core/dvb_frontend.c -> dtv_property_process_get
+
 //
 // ----- Common trait and structs
 
@@ -161,6 +163,20 @@ impl PropertyQuery for Modulation {
         Self(unsafe {
             FeModulation::try_from(u.data).expect("unexpected value for modulation type")
         })
+    }
+}
+
+// ---
+
+pub struct SymbolRate(pub u32);
+impl PropertyQuery for SymbolRate {
+    fn associated_command() -> Command {
+        Command::DTV_SYMBOL_RATE
+    }
+
+    fn from_property(u: DtvPropertyUnion) -> Self {
+        // SAFETY: No matter what data is provided, a u32 always has a valid value
+        Self(unsafe { u.data })
     }
 }
 

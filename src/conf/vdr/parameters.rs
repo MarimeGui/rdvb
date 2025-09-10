@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::error::VdrParseError;
+use crate::{error::VdrParseError, frontend::properties::set::BandwidthHz};
 
 #[derive(Debug, Clone, Default)]
 pub struct Parameters {
@@ -29,6 +29,19 @@ pub enum Bandwidth {
     _7MHz,
     _8MHz,
     _10MHz,
+}
+
+impl From<BandwidthHz> for Bandwidth {
+    fn from(value: BandwidthHz) -> Self {
+        match value {
+            BandwidthHz::_1_172MHz => Bandwidth::_1712kHz,
+            BandwidthHz::_5MHz => Bandwidth::_5MHz,
+            BandwidthHz::_6MHz => Bandwidth::_6Mhz,
+            BandwidthHz::_7MHz => Bandwidth::_7MHz,
+            BandwidthHz::_8MHz => Bandwidth::_8MHz,
+            BandwidthHz::_10MHz => Bandwidth::_10MHz,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]

@@ -1,6 +1,6 @@
 use std::{num::ParseIntError, str::FromStr};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AudioPIDList {
     pub regular_pids: Vec<AudioPID>,
     pub dolby_pids: Vec<AudioPID>,
@@ -128,6 +128,7 @@ impl AudioPID {
             self.audio_type,
         ) {
             (false, false, None) => self.pid.to_string(),
+            (false, false, Some(audio_type)) => format!("{}@{}", self.pid, audio_type),
             (true, false, None) => {
                 format!("{}={}", self.pid, self.language_code)
             }

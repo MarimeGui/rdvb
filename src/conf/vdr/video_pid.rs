@@ -2,9 +2,11 @@ use std::{num::ParseIntError, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct VideoPID {
+    /// PCR PID of a Program Map Table.
     pub pcr_pid: u16,
+    /// If the Video PID number is different from PCR PID, this is set.
     pub video_pid: Option<u16>,
-    /// Not shown when 0
+    /// Corresponds to the stream_type value in an ElementaryStream. Not shown when 0.
     pub video_mode: u16,
 }
 
