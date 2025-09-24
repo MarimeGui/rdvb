@@ -37,6 +37,8 @@ pub mod conf;
 pub mod demux;
 pub mod error;
 pub mod frontend;
+pub mod mpeg;
+pub mod si;
 pub mod utils;
 
 /// For all IOCTLs related to DVB
