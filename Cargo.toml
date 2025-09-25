@@ -1,5 +1,10 @@
 [package]
 name = "rdvb"
+description = "Manipulate Digital Video Broadcasting (DVB) devices to watch TV and more"
+repository = "https://github.com/MarimeGui/rdvb"
+keywords = ["dvb"]
+categories = ["multimedia"]
+readme = "README.md"
 version = "0.1.0"
 edition = "2024"
 

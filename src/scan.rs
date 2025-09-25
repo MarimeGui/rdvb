@@ -78,6 +78,7 @@ pub fn scan_channel(
     found_transponders: &mut HashMap<u16, Transponder>,
 ) {
     // --- Tune to given frequency, bandwidth and system
+    // TODO: No need to set bandwidth and system every time, right ?
     frontend.tune(frequency, system, bandwidth).unwrap();
 
     // --- Check every 100ms if the frontend got a lock on something
