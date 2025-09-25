@@ -1,4 +1,4 @@
-use crate::mpeg::{Descriptor, Packet};
+use crate::mpeg::{descriptors::Descriptor, Packet};
 
 #[derive(Debug)]
 pub struct ProgramMapTable {

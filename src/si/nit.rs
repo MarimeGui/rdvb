@@ -1,4 +1,4 @@
-use crate::mpeg::{Descriptor, Packet};
+use crate::mpeg::{descriptors::Descriptor, Packet};
 
 /// NIT describes all services that are available in neighboring area. It contains a list of transponders and associated services
 
