@@ -7,7 +7,10 @@ pub mod video_pid;
 
 use std::str::FromStr;
 
-use crate::error::VdrParseError;
+use crate::{
+    conf::vdr::parameters::DeliverySystemGeneration, error::VdrParseError,
+    frontend::sys::FeDeliverySystem, interpret::ChannelInformation,
+};
 use audio_pid::AudioPIDList;
 use parameters::Parameters;
 use teletext_pid::TeletextPIDList;
@@ -202,6 +205,61 @@ impl ChannelDefinition {
             self.transport_stream_id,
             self.radio_id
         )
+    }
+}
+
+impl From<ChannelInformation> for ChannelDefinition {
+    fn from(value: ChannelInformation) -> Self {
+        let parameters = Parameters {
+            bandwidth: Some(value.bandwidth.into()),
+            code_rate_high_priority: None,
+            code_rate_low_priority: None,
+            guard_interval: None,
+            polarization: None,
+            inversion: None,
+            modulation: None,
+            pilot_mode: None,
+            roll_off: None,
+            stream_id: None,
+            t2_system_id: None, // TODO: Not sure where this is found
+            delivery_system_generation: Some(system_to_generation(&value.delivery_system)),
+            transmission_mode: None,
+            input_mode: None,
+            hierarchy: None,
+        };
+
+        ChannelDefinition {
+            name: value.name,
+            short_name: String::new(),
+            bouquet: String::new(),
+            frequency: value.frequency,
+            parameters,
+            source: system_to_source(&value.delivery_system).to_string(),
+            symbol_rate: value.symbol_rate.unwrap_or(0), // Should the default be per-system ?
+            video_pid: value.video_pid,
+            audio_pid: value.audio_pid_list,
+            teletext_pid: TeletextPIDList::default(), // TODO: Teletext/Subtitles
+            conditional_access: "0".to_string(),      // TODO: CA
+            service_id: value.service_id,
+            network_id: value.original_network_id,
+            transport_stream_id: value.transport_stream_id,
+            radio_id: 0, // IT'S!! TV!! TiME!!
+        }
+    }
+}
+
+fn system_to_source(system: &FeDeliverySystem) -> &'static str {
+    match system {
+        FeDeliverySystem::DVBT | FeDeliverySystem::DVBT2 => "T",
+        _ => unimplemented!(),
+    }
+}
+
+fn system_to_generation(system: &FeDeliverySystem) -> DeliverySystemGeneration {
+    match system {
+        FeDeliverySystem::DVBT => DeliverySystemGeneration::FirstGeneration,
+        FeDeliverySystem::DVBT2 => DeliverySystemGeneration::SecondGeneration,
+        _ => unimplemented!(),
     }
 }
 

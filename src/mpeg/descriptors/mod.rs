@@ -1,13 +1,11 @@
-use crate::mpeg::{
-    descriptors::{
-        ac3::Ac3, application_signalling::ApplicationSignalling,
-        carousel_identifier::CarouselIdentifier, component::Component,
-        data_broadcast_id::DataBroadcastId, enhanced_ac3::EnhancedAc3, extension::Extension,
-        iso639_language::Iso639Language, logical_channel::LogicalChannel,
-        network_name::NetworkName, private_data_specifier::PrivateDataSpecifier, service::Service,
-        service_list::ServiceList, stream_identifier::StreamIdentifier, subtitling::Subtitling,
-        terrestrial_delivery_system::TerrestrialDeliverySystem,
-    },
+use crate::mpeg::descriptors::{
+    ac3::Ac3, application_signalling::ApplicationSignalling,
+    carousel_identifier::CarouselIdentifier, component::Component,
+    data_broadcast_id::DataBroadcastId, enhanced_ac3::EnhancedAc3, extension::Extension,
+    iso639_language::Iso639Language, logical_channel::LogicalChannel, network_name::NetworkName,
+    private_data_specifier::PrivateDataSpecifier, service::Service, service_list::ServiceList,
+    stream_identifier::StreamIdentifier, subtitling::Subtitling,
+    terrestrial_delivery_system::TerrestrialDeliverySystem,
 };
 
 pub mod ac3;

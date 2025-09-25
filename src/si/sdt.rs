@@ -1,4 +1,4 @@
-use crate::mpeg::{descriptors::Descriptor, Packet};
+use crate::mpeg::{Packet, descriptors::Descriptor};
 
 #[derive(Debug)]
 pub struct ServiceDescriptionTable {

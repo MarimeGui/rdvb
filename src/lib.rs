@@ -37,7 +37,9 @@ pub mod conf;
 pub mod demux;
 pub mod error;
 pub mod frontend;
+pub mod interpret;
 pub mod mpeg;
+pub mod scan;
 pub mod si;
 pub mod utils;
 
