@@ -9,8 +9,8 @@ use crate::{
     mpeg::{decode_stupid_string, descriptors::Descriptor},
     scan::Transponder,
     si::{
-        nit::{NetworkInformationTable, NitElement},
-        pmt::{ProgramMapTable, StreamType},
+        nit::{NetworkInformation, NitElement},
+        pmt::{ProgramMap, StreamType},
     },
 };
 
@@ -37,7 +37,7 @@ impl ChannelInformation {
     pub fn from_transponder(transponder: &Transponder) -> Vec<ChannelInformation> {
         let mut channels = Vec::new();
 
-        for service in &transponder.service_description_table.services {
+        for service in &transponder.service_description.services {
             // Find the service descriptor
             // TODO: Being able to store that specific descriptor would be easier
             let mut service_descriptor = None;
@@ -57,10 +57,9 @@ impl ChannelInformation {
             let name = service_data.service.clone();
 
             // Match corresponding NITElement
-            let nit_element = if let Some(e) = find_nit_element_by_service_id(
-                &transponder.network_information_table,
-                service.service_id,
-            ) {
+            let nit_element = if let Some(e) =
+                find_nit_element_by_service_id(&transponder.network_information, service.service_id)
+            {
                 e
             } else {
                 // Weird that this service isn't in the NIT, skip it
@@ -86,7 +85,7 @@ impl ChannelInformation {
                 name,
                 logical_channel_number,
                 service_id: service.service_id,
-                original_network_id: transponder.service_description_table.original_network_id,
+                original_network_id: transponder.service_description.original_network_id,
                 transport_stream_id: nit_element.transport_stream_id,
                 video_pid: pmt_to_video_pid(pmt_element).unwrap(),
                 audio_pid_list: pmt_to_audio_pids(pmt_element),
@@ -121,7 +120,7 @@ pub fn sort_by_lcn(channels: &mut [ChannelInformation]) {
 }
 
 fn find_nit_element_by_service_id(
-    nit: &NetworkInformationTable,
+    nit: &NetworkInformation,
     service_id: u16,
 ) -> Option<&NitElement> {
     for element in &nit.elements {
@@ -160,16 +159,13 @@ fn find_lcn_from_nit_element_by_service_id(
     None
 }
 
-fn find_pmt_by_service_id(
-    program_map: &[ProgramMapTable],
-    service_id: u16,
-) -> Option<&ProgramMapTable> {
+fn find_pmt_by_service_id(program_map: &[ProgramMap], service_id: u16) -> Option<&ProgramMap> {
     program_map.iter().find(|&e| e.program_number == service_id)
 }
 
 // TODO: Could merge all PID searches into a single fn
 
-fn pmt_to_video_pid(pmt_element: &ProgramMapTable) -> Option<VideoPID> {
+fn pmt_to_video_pid(pmt_element: &ProgramMap) -> Option<VideoPID> {
     // Search through all Elementary Streams and look for Video streams
     for elementary_stream in &pmt_element.elementary_streams {
         // Skip non-video streams
@@ -194,7 +190,7 @@ fn pmt_to_video_pid(pmt_element: &ProgramMapTable) -> Option<VideoPID> {
     None
 }
 
-fn pmt_to_audio_pids(pmt_element: &ProgramMapTable) -> AudioPIDList {
+fn pmt_to_audio_pids(pmt_element: &ProgramMap) -> AudioPIDList {
     let mut regular_pids = Vec::new();
     let mut dolby_pids = Vec::new();
 

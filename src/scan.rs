@@ -4,19 +4,19 @@ use std::{collections::HashMap, path::Path, time::Duration};
 
 use crate::{
     bands::ChannelParameters,
+    demux::{PidTableIdPair, receive_multiple_single_packets, receive_single_packet},
     frontend::{
         DeliverySystem, Frontend,
         properties::{get::SignalStrength, set::BandwidthHz},
     },
-    mpeg::{
-        PID_PAT, PID_SDT_BAT_ST, PidTableIdPair, TABLE_NIT_ACT, TABLE_PAT, TABLE_PMT,
-        TABLE_SDT_ACT, receive_single_packet, receive_single_packet_many,
-    },
     si::{
-        nit::{NetworkInformationTable, parse_nit},
-        pat::{PatValue, parse_pat},
-        pmt::{ProgramMapTable, parse_pmt},
-        sdt::{ServiceDescriptionTable, parse_sdt},
+        nit::{ACTUAL_NETWORK_TABLE_ID as NIT_ACTUAL_NETWORK_TABLE_ID, NetworkInformation},
+        pat::{PID as PAT_PID, PatValue, TABLE_ID as PAT_TABLE_ID, parse_pat},
+        pmt::{ProgramMap, TABLE_ID as PMT_TABLE_ID},
+        sdt::{
+            ACTUAL_TRANSPORT_TABLE_ID as SDT_ACTUAL_TRANSPORT_TABLE_ID, PID as SDT_PID,
+            ServiceDescription,
+        },
     },
 };
 
@@ -30,9 +30,9 @@ pub struct Transponder {
     pub system: DeliverySystem,
     pub bandwidth: BandwidthHz,
     pub strength: SignalStrength,
-    pub program_map: Vec<ProgramMapTable>,
-    pub service_description_table: ServiceDescriptionTable,
-    pub network_information_table: NetworkInformationTable,
+    pub program_map: Vec<ProgramMap>,
+    pub service_description: ServiceDescription,
+    pub network_information: NetworkInformation,
 }
 
 /// Scans a whole system, like DVB-T or DVB-S. This returns a list of valid transponders.
@@ -86,14 +86,15 @@ pub fn scan_channel(
     }
 
     // --- Get the PAT (Program Association Table) on its own
-    let packet = match receive_single_packet(demux_path, PID_PAT, TABLE_PAT, Some(PAT_TIMEOUT)) {
-        Ok(v) => v,
-        Err(e) => match e.kind() {
-            // If receiving a valid packet times out, this probably means we're not receiving this transponder well enough, skip it
-            std::io::ErrorKind::TimedOut => return,
-            _ => panic!(),
-        },
-    };
+    let packet =
+        match receive_single_packet(demux_path, PAT_PID, Some(PAT_TABLE_ID), Some(PAT_TIMEOUT)) {
+            Ok(v) => v,
+            Err(e) => match e.kind() {
+                // If receiving a valid packet times out, this probably means we're not receiving this transponder well enough, skip it
+                std::io::ErrorKind::TimedOut => return,
+                _ => panic!(),
+            },
+        };
     let pat_entries = parse_pat(&packet);
     let transport_stream_id = packet.header.identifier;
 
@@ -134,46 +135,46 @@ pub fn scan_channel(
                 nit_indices.push(all_pairs.len());
                 all_pairs.push(PidTableIdPair {
                     pid,
-                    table_id: TABLE_NIT_ACT,
+                    table_id: Some(NIT_ACTUAL_NETWORK_TABLE_ID),
                 });
             }
             PatValue::ProgramMap(pid) => {
                 pmt_indices.push(all_pairs.len());
                 all_pairs.push(PidTableIdPair {
                     pid,
-                    table_id: TABLE_PMT,
+                    table_id: Some(PMT_TABLE_ID),
                 });
             }
         }
     }
 
-    // Add NIT
+    // Add SDT
     let sdt_index = all_pairs.len();
     all_pairs.push(PidTableIdPair {
-        pid: PID_SDT_BAT_ST,
-        table_id: TABLE_SDT_ACT,
+        pid: SDT_PID,
+        table_id: Some(SDT_ACTUAL_TRANSPORT_TABLE_ID),
     });
 
     // Receive all packets
-    let packets = receive_single_packet_many(demux_path, all_pairs, None).unwrap();
+    let packets = receive_multiple_single_packets(demux_path, all_pairs, None).unwrap();
 
     // Parse all NITs (there should only be one)
     // TODO: Could optimize this for a single packet...
     let mut nit = None;
     for index in nit_indices {
-        nit = Some(parse_nit(&packets[index]));
+        nit = Some(NetworkInformation::from_packet(&packets[index]));
     }
     let nit = nit.unwrap();
 
     // Parse all PMTs
     let mut program_map = Vec::new();
     for index in pmt_indices {
-        let pmt = parse_pmt(&packets[index]);
+        let pmt = ProgramMap::from_packet(&packets[index]);
         program_map.push(pmt);
     }
 
     // Parse SDT
-    let sdt = parse_sdt(&packets[sdt_index]);
+    let sdt = ServiceDescription::from_packet(&packets[sdt_index]);
 
     found_transponders.insert(
         transport_stream_id,
@@ -183,8 +184,8 @@ pub fn scan_channel(
             bandwidth,
             strength,
             program_map,
-            service_description_table: sdt,
-            network_information_table: nit,
+            service_description: sdt,
+            network_information: nit,
         },
     );
 }

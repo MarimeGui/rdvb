@@ -1,26 +1,8 @@
 pub mod descriptors;
 
-use std::{path::Path, time::Duration};
-
-use rdvb_os_linux::demux::data::{DmxFilter, DmxSctFilterParams};
-
-use crate::demux::Demux;
-
 pub const DMX_CHECK_CRC: u32 = 1;
 pub const DMX_ONESHOT: u32 = 2;
 pub const DMX_IMMEDIATE_START: u32 = 4;
-
-pub const PID_PAT: u16 = 0;
-pub const PID_SDT_BAT_ST: u16 = 0x11;
-
-/// Program Association Section
-pub const TABLE_PAT: u16 = 0;
-/// Program Map Section
-pub const TABLE_PMT: u16 = 2;
-/// Network Information Section - Actual network
-pub const TABLE_NIT_ACT: u16 = 0x40;
-/// Service Description Section - Actual transport stream
-pub const TABLE_SDT_ACT: u16 = 0x42;
 
 // TODO: 0x2000 does not work anymore for receiving all packets. Is there still a way to get the entire stream ? I think mpv might have something.
 
@@ -30,6 +12,27 @@ pub struct Packet {
     pub header: PacketHeader,
     pub data: Vec<u8>,
     pub crc: u32,
+}
+
+impl Packet {
+    pub fn from_buf(buf: &[u8]) -> Packet {
+        let header = PacketHeader::from_buf(buf);
+
+        let payload_start = PacketHeader::LENGTH;
+        let payload_end = buf.len() - (PacketHeader::LENGTH - 4); // Remove header and CRC32 from total size
+        let data = buf[payload_start..payload_end].to_vec();
+
+        // TODO: At least, I assume ? I couldn't match the CRC... Not sure if there is an init value, or if the CRC field should not be used ?
+        let crc_start = buf.len() - 4;
+        let crc = u32::from_be_bytes([
+            buf[crc_start],
+            buf[crc_start + 1],
+            buf[crc_start + 2],
+            buf[crc_start + 3],
+        ]);
+
+        Self { header, data, crc }
+    }
 }
 
 #[derive(Debug)]
@@ -46,10 +49,10 @@ pub struct PacketHeader {
 }
 
 impl PacketHeader {
-    const BUF_LEN: usize = 8;
+    pub const LENGTH: usize = 8;
 
     pub fn from_buf(buf: &[u8]) -> PacketHeader {
-        if buf.len() < Self::BUF_LEN {
+        if buf.len() < Self::LENGTH {
             panic!()
         }
 
@@ -84,103 +87,8 @@ impl PacketHeader {
     }
 }
 
-// TODO Lib: Get one packet with trait for specific section ?
-
-pub struct PidTableIdPair {
-    pub pid: u16,
-    // TODO: Make this option
-    pub table_id: u16,
-}
-
-/// Receives a single packet from specified PIDs and Table IDs
-pub fn receive_single_packet_many(
-    demux_path: &Path,
-    pids_table_ids: Vec<PidTableIdPair>,
-    timeout: Option<Duration>,
-) -> Result<Vec<Packet>, std::io::Error> {
-    // First, setup all demuxers for all requested pairs
-    let mut demuxers = Vec::new();
-    for pair in pids_table_ids {
-        let mut demux = Demux::new(demux_path)?;
-
-        let inner_filter = DmxFilter {
-            filter: {
-                let mut filter = [0; 16];
-                if pair.table_id < 0x100 {
-                    filter[0] = pair.table_id as u8;
-                }
-                filter
-            },
-            mask: {
-                let mut mask = [0; 16];
-                if pair.table_id < 0x100 {
-                    mask[0] = 0xFF;
-                }
-                mask
-            },
-            mode: [0; 16],
-        };
-        let filter = DmxSctFilterParams {
-            pid: pair.pid,
-            filter: inner_filter,
-            timeout: timeout.map(|d| d.as_millis() as u32).unwrap_or(0),
-            flags: DMX_CHECK_CRC | DMX_ONESHOT | DMX_IMMEDIATE_START, // TODO: Proper thing later
-        };
-        demux.set_filter(&filter);
-        demuxers.push(demux);
-    }
-
-    // Now, the kernel will keep a single packet as it arrives, and we can block on reading all of them
-
-    // Read all demuxers
-    let mut packets = Vec::new();
-    for mut demux in demuxers.into_iter() {
-        let mut buf = vec![0; 4096];
-        let read = demux.read(&mut buf)?;
-        buf.truncate(read);
-
-        let header = PacketHeader::from_buf(&buf);
-
-        let payload_start = PacketHeader::BUF_LEN;
-        let payload_end = buf.len() - (PacketHeader::BUF_LEN - 4); // Remove header and CRC32 from total size
-        let data = buf[payload_start..payload_end].to_vec();
-
-        // TODO: At least, I assume ? I couldn't match the CRC... Not sure if there is an init value, or if the CRC field should not be used ?
-        let crc_start = buf.len() - 4;
-        let crc = u32::from_be_bytes([
-            buf[crc_start],
-            buf[crc_start + 1],
-            buf[crc_start + 2],
-            buf[crc_start + 3],
-        ]);
-
-        packets.push(Packet { header, data, crc });
-    }
-
-    Ok(packets)
-}
-
-pub fn receive_single_packet(
-    demux_path: &Path,
-    pid: u16,
-    table_id: u16,
-    timeout: Option<Duration>,
-) -> Result<Packet, std::io::Error> {
-    let packets =
-        receive_single_packet_many(demux_path, vec![PidTableIdPair { pid, table_id }], timeout)?;
-    let p = packets.into_iter().next().unwrap();
-    Ok(p)
-}
-
 //
 // -----
-
-#[derive(Debug, Clone)]
-pub struct ServiceListDescriptorElement {
-    /// Same as program number in program map except for 0x04, 0x18, 0x1B (NVOD services) (from ETSI EN 300 468)
-    pub service_id: u16,
-    pub service_type: ServiceType,
-}
 
 /// Table of all possible service types.
 ///
@@ -253,6 +161,9 @@ impl ServiceType {
         }
     }
 }
+
+//
+// -----
 
 pub fn decode_stupid_string(raw_text: &[u8]) -> Option<String> {
     // For now, just do best-effort conversion and remove weird characters

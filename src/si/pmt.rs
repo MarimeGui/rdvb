@@ -1,7 +1,10 @@
 use crate::mpeg::{Packet, descriptors::Descriptor};
 
+/// Program Map Section table ID, as defined in `EN 300 468 V1.17.1`, p24
+pub const TABLE_ID: u8 = 0x02;
+
 #[derive(Debug)]
-pub struct ProgramMapTable {
+pub struct ProgramMap {
     pub program_number: u16,
     pub pcr_pid: u16,
     pub program_info_descriptors: Vec<Descriptor>,
@@ -124,59 +127,62 @@ impl StreamType {
     }
 }
 
-// ISO/IEC 13818-1 page 64
-pub fn parse_pmt(packet: &Packet) -> ProgramMapTable {
-    let _reserved_1 = packet.data[0] & 0b1110_0000;
-    let pcr_pid = u16::from_be_bytes([packet.data[0] & 0b0001_1111, packet.data[1]]);
-    let _reserved_2 = packet.data[2] & 0b1111_0000;
-    assert_eq!((packet.data[2] as u16) & 0b0000_1100, 0);
-    let program_info_length = u16::from_be_bytes([packet.data[2] & 0b0000_0011, packet.data[3]]);
+impl ProgramMap {
+    // ISO/IEC 13818-1 page 64
+    pub fn from_packet(packet: &Packet) -> ProgramMap {
+        let _reserved_1 = packet.data[0] & 0b1110_0000;
+        let pcr_pid = u16::from_be_bytes([packet.data[0] & 0b0001_1111, packet.data[1]]);
+        let _reserved_2 = packet.data[2] & 0b1111_0000;
+        assert_eq!((packet.data[2] as u16) & 0b0000_1100, 0);
+        let program_info_length =
+            u16::from_be_bytes([packet.data[2] & 0b0000_0011, packet.data[3]]);
 
-    // Parse descriptors
-    // TODO: Not sure what these descriptors may contain as I've never seen any here
-    let mut current_offset = 4;
-    let program_info_descriptors = Descriptor::read_many(
-        &packet.data[current_offset..current_offset + program_info_length as usize],
-    );
-    current_offset += program_info_length as usize;
-
-    let mut elementary_streams = Vec::new();
-
-    while (current_offset as u16) < packet.header.payload_len() {
-        let stream_type = packet.data[current_offset];
-        current_offset += 1;
-
-        let _reserved_a = packet.data[current_offset] & 0b1110_0000;
-        let elementary_pid = u16::from_be_bytes([
-            packet.data[current_offset] & 0b0001_1111,
-            packet.data[current_offset + 1],
-        ]);
-        current_offset += 2;
-
-        let _reserved_b = packet.data[current_offset] & 0b1111_0000;
-        assert_eq!((packet.data[current_offset] as u16) & 0b0000_1100, 0);
-        let es_info_length = u16::from_be_bytes([
-            packet.data[current_offset] & 0b0000_0011,
-            packet.data[current_offset + 1],
-        ]);
-        current_offset += 2;
-
-        let descriptors = Descriptor::read_many(
-            &packet.data[current_offset..current_offset + es_info_length as usize],
+        // Parse descriptors
+        // TODO: Not sure what these descriptors may contain as I've never seen any here
+        let mut current_offset = 4;
+        let program_info_descriptors = Descriptor::read_many(
+            &packet.data[current_offset..current_offset + program_info_length as usize],
         );
-        current_offset += es_info_length as usize;
+        current_offset += program_info_length as usize;
 
-        elementary_streams.push(ElementaryStream {
-            stream_type: StreamType::from_u8(stream_type),
-            elementary_pid,
-            descriptors,
-        });
-    }
+        let mut elementary_streams = Vec::new();
 
-    ProgramMapTable {
-        program_number: packet.header.identifier,
-        pcr_pid,
-        program_info_descriptors,
-        elementary_streams,
+        while (current_offset as u16) < packet.header.payload_len() {
+            let stream_type = packet.data[current_offset];
+            current_offset += 1;
+
+            let _reserved_a = packet.data[current_offset] & 0b1110_0000;
+            let elementary_pid = u16::from_be_bytes([
+                packet.data[current_offset] & 0b0001_1111,
+                packet.data[current_offset + 1],
+            ]);
+            current_offset += 2;
+
+            let _reserved_b = packet.data[current_offset] & 0b1111_0000;
+            assert_eq!((packet.data[current_offset] as u16) & 0b0000_1100, 0);
+            let es_info_length = u16::from_be_bytes([
+                packet.data[current_offset] & 0b0000_0011,
+                packet.data[current_offset + 1],
+            ]);
+            current_offset += 2;
+
+            let descriptors = Descriptor::read_many(
+                &packet.data[current_offset..current_offset + es_info_length as usize],
+            );
+            current_offset += es_info_length as usize;
+
+            elementary_streams.push(ElementaryStream {
+                stream_type: StreamType::from_u8(stream_type),
+                elementary_pid,
+                descriptors,
+            });
+        }
+
+        ProgramMap {
+            program_number: packet.header.identifier,
+            pcr_pid,
+            program_info_descriptors,
+            elementary_streams,
+        }
     }
 }

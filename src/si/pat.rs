@@ -2,6 +2,12 @@
 
 use crate::mpeg::Packet;
 
+/// "Program Association Table" fixed packet ID, as defined in `EN 300 468 V1.17.1`, p23
+pub const PID: u16 = 0x0000;
+
+/// "Program Association Section" table ID, as defined in `EN 300 468 V1.17.1`, p24
+pub const TABLE_ID: u8 = 0x00;
+
 #[derive(Debug)]
 pub struct PatElement {
     pub program_number: u16,
