@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use crate::{error::VdrParseError, frontend::properties::set::BandwidthHz};
+use crate::{
+    error::VdrParseError,
+    frontend::{DeliverySystemGeneration, properties::set::BandwidthHz},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct Parameters {
@@ -21,6 +24,7 @@ pub struct Parameters {
     pub hierarchy: Option<Hierarchy>,
 }
 
+// TODO: Could generalize
 #[derive(Debug, Copy, Clone)]
 pub enum Bandwidth {
     _1712kHz,
@@ -108,14 +112,6 @@ pub enum RollOff {
     _0_20,
     _0_25,
     _0_35,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum DeliverySystemGeneration {
-    /// DVB-T, DVB-S2
-    FirstGeneration,
-    /// DVB-T2, DVB-S2
-    SecondGeneration,
 }
 
 #[derive(Debug, Copy, Clone)]

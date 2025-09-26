@@ -1,6 +1,8 @@
-use crate::frontend::sys::{
-    FeCodeRate, FeDeliverySystem, FeGuardInterval, FeModulation, FeSpectralInversion,
-    FeTransmitMode,
+use rdvb_os_linux::frontend::{
+    data::{
+        FeCodeRate, FeDeliverySystem, FeGuardInterval, FeModulation, FeSpectralInversion,
+        FeTransmitMode,
+    },
     property::{Command, DtvProperty},
 };
 

@@ -20,7 +20,7 @@
 //! The user picks it up with an antenna connected to their USB receiver.
 //!
 //! From there, the Frontend (as in radio frequency frontend) of the receiver directly connects to the antenna.
-//! The user, through the Linux kernel IOCTLs, tells the frontend to tune for a particular [delivery system](frontend::sys::FeDeliverySystem) (DVB-T, DVB-T2, DVB-S...) with a specific bandwidth and frequency.
+//! The user, through the Linux kernel IOCTLs, tells the frontend to tune for a particular [delivery system](frontend::DeliverySystem) (DVB-T, DVB-T2, DVB-S...) with a specific bandwidth and frequency.
 //! The frontend should then handle all of the radio-frequency business.
 //!
 //! If everything works out, the frontend should enter a locked state ([`has_lock`](frontend::sys::FeStatus::has_lock)) and start streaming the whole multiplex to the demuxer.
@@ -42,6 +42,3 @@ pub mod mpeg;
 pub mod scan;
 pub mod si;
 pub mod utils;
-
-/// For all IOCTLs related to DVB
-pub(crate) const IOCTL_TYPE: u8 = b'o';

@@ -1,8 +1,9 @@
-pub mod sys;
-
 use std::{fs::File, io::Read, os::fd::AsFd, path::Path};
 
-use sys::{DmxSctFilterParams, set_filter, start, stop};
+use rdvb_os_linux::demux::{
+    data::DmxSctFilterParams,
+    functions::{set_filter, start, stop},
+};
 
 pub struct Demux {
     file: File,

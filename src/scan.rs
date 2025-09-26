@@ -5,9 +5,8 @@ use std::{collections::HashMap, path::Path, time::Duration};
 use crate::{
     bands::ChannelParameters,
     frontend::{
-        Frontend,
+        DeliverySystem, Frontend,
         properties::{get::SignalStrength, set::BandwidthHz},
-        sys::FeDeliverySystem,
     },
     mpeg::{
         PID_PAT, PID_SDT_BAT_ST, PidTableIdPair, TABLE_NIT_ACT, TABLE_PAT, TABLE_PMT,
@@ -28,7 +27,7 @@ const PAT_TIMEOUT: Duration = Duration::from_secs(3); // A bit longer as DVB-T2 
 #[derive(Debug)]
 pub struct Transponder {
     pub frequency: u32,
-    pub system: FeDeliverySystem,
+    pub system: DeliverySystem,
     pub bandwidth: BandwidthHz,
     pub strength: SignalStrength,
     pub program_map: Vec<ProgramMapTable>,
@@ -40,7 +39,7 @@ pub struct Transponder {
 pub fn scan_system<F, T>(
     frontend: &mut Frontend,
     frequencies: T,
-    system: FeDeliverySystem,
+    system: DeliverySystem,
     demux_path: &Path,
     cb: F,
 ) -> Vec<Transponder>
@@ -72,7 +71,7 @@ where
 pub fn scan_channel(
     frontend: &mut Frontend,
     demux_path: &Path,
-    system: FeDeliverySystem,
+    system: DeliverySystem,
     frequency: u32,
     bandwidth: BandwidthHz,
     found_transponders: &mut HashMap<u16, Transponder>,

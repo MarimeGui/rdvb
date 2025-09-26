@@ -1,9 +1,9 @@
 pub mod properties;
-pub mod sys;
 
 use std::{
     collections::BTreeSet,
     ffi::{CStr, c_char},
+    fmt::{Display, Formatter, Result as FmtResult},
     fs::File,
     mem::MaybeUninit,
     os::fd::AsFd,
@@ -14,19 +14,18 @@ use std::{
 
 use crate::{
     error::FrontendError,
-    frontend::{
-        properties::{
-            get::{EnumerateDeliverySystems, PropertyQuery, SignalStrength},
-            set::{BandwidthHz, DeliverySystem, Frequency, SetPropertyQuery, Tune},
+    frontend::properties::{
+        get::{EnumerateDeliverySystems, PropertyQuery, SignalStrength},
+        set::{
+            BandwidthHz, DeliverySystem as DeliverySystemSet, Frequency, SetPropertyQuery, Tune,
         },
-        sys::FeDeliverySystem,
     },
     utils::ValueBounds,
 };
 use properties::get::QueryDescription;
-use sys::{
-    DvbFrontendInfo, FeCaps, FeStatus,
-    ioctl::{get_info, get_set_properties_raw, read_status},
+use rdvb_os_linux::frontend::{
+    data::{DvbFrontendInfo, FeCaps, FeDeliverySystem, FeStatus},
+    functions::{get_info, get_set_properties_raw, read_status},
     property::DtvProperty,
 };
 
@@ -126,11 +125,11 @@ impl Frontend {
     pub fn tune(
         &mut self,
         frequency: u32,
-        delivery_system: FeDeliverySystem,
+        delivery_system: DeliverySystem,
         bandwidth: BandwidthHz,
     ) -> Result<()> {
         let freq = Frequency::new(frequency);
-        let del_sys = DeliverySystem::new(delivery_system);
+        let del_sys = DeliverySystemSet::new(delivery_system.into());
         let tune = Tune {};
         self.set_properties(&mut [
             freq.property(),
@@ -169,13 +168,14 @@ impl Frontend {
     /// Return a list of all delivery systems (DVB-T, DVB-T2, SVB-S...) this frontend supports.
     ///
     /// This is equivalent to using `properties` with `EnumerateDeliverySystems` property query. This function is for convenience.
-    pub fn list_systems(&mut self) -> Result<BTreeSet<FeDeliverySystem>> {
+    pub fn list_systems(&mut self) -> Result<BTreeSet<DeliverySystem>> {
         let mut enumerate_systems = EnumerateDeliverySystems::query();
         self.properties(&mut [enumerate_systems.desc()])?;
-        Ok(enumerate_systems
+        let enumerate = enumerate_systems
             .retrieve()
             .map_err(FrontendError::Retrieve)?
-            .0)
+            .0;
+        Ok(enumerate.iter().map(|s| (*s).into()).collect())
     }
 
     /// Get a reading of the strength of the signal being received.
@@ -245,5 +245,115 @@ impl From<DvbFrontendInfo> for Info {
             },
             capabilities: value.caps,
         }
+    }
+}
+
+//
+// ----- Delivery System
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DeliverySystem {
+    DvbCAnnexA,
+    DvbCAnnexB,
+    DvbCAnnexC,
+    DvbC2,
+    DvbT,
+    DvbT2,
+    DvbS,
+    DvbS2,
+}
+
+impl From<FeDeliverySystem> for DeliverySystem {
+    fn from(value: FeDeliverySystem) -> Self {
+        match value {
+            FeDeliverySystem::UNDEFINED => panic!(),
+            FeDeliverySystem::DVBC_ANNEX_A => Self::DvbCAnnexA,
+            FeDeliverySystem::DVBC_ANNEX_B => Self::DvbCAnnexB,
+            FeDeliverySystem::DVBT => Self::DvbT,
+            FeDeliverySystem::DSS => unimplemented!(),
+            FeDeliverySystem::DVBS => Self::DvbS,
+            FeDeliverySystem::DVBS2 => Self::DvbS2,
+            FeDeliverySystem::DVBH => unimplemented!(),
+            FeDeliverySystem::ISDBT => unimplemented!(),
+            FeDeliverySystem::ISDBS => unimplemented!(),
+            FeDeliverySystem::ISDBC => unimplemented!(),
+            FeDeliverySystem::ATSC => unimplemented!(),
+            FeDeliverySystem::ATSCMH => unimplemented!(),
+            FeDeliverySystem::DTMB => unimplemented!(),
+            FeDeliverySystem::CMMB => unimplemented!(),
+            FeDeliverySystem::DAB => unimplemented!(),
+            FeDeliverySystem::DVBT2 => Self::DvbT2,
+            FeDeliverySystem::TURBO => unimplemented!(),
+            FeDeliverySystem::DVBC_ANNEX_C => Self::DvbCAnnexC,
+            FeDeliverySystem::DVBC2 => Self::DvbC2,
+        }
+    }
+}
+
+impl From<DeliverySystem> for FeDeliverySystem {
+    fn from(value: DeliverySystem) -> Self {
+        match value {
+            DeliverySystem::DvbCAnnexA => Self::DVBC_ANNEX_A,
+            DeliverySystem::DvbCAnnexB => Self::DVBC_ANNEX_B,
+            DeliverySystem::DvbCAnnexC => Self::DVBC_ANNEX_C,
+            DeliverySystem::DvbC2 => Self::DVBC2,
+            DeliverySystem::DvbT => Self::DVBT,
+            DeliverySystem::DvbT2 => Self::DVBT2,
+            DeliverySystem::DvbS => Self::DVBS,
+            DeliverySystem::DvbS2 => Self::DVBS2,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum DeliverySystemMode {
+    Terrestrial,
+    Satellite,
+    Cable,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum DeliverySystemGeneration {
+    FirstGeneration,
+    SecondGeneration,
+}
+
+impl DeliverySystem {
+    pub fn mode(&self) -> DeliverySystemMode {
+        match self {
+            Self::DvbT | Self::DvbT2 => DeliverySystemMode::Terrestrial,
+            Self::DvbS | Self::DvbS2 => DeliverySystemMode::Satellite,
+            Self::DvbCAnnexA | Self::DvbCAnnexB | Self::DvbCAnnexC | Self::DvbC2 => {
+                DeliverySystemMode::Cable
+            }
+        }
+    }
+
+    pub fn generation(&self) -> DeliverySystemGeneration {
+        match self {
+            Self::DvbT | Self::DvbS | Self::DvbCAnnexA | Self::DvbCAnnexB | Self::DvbCAnnexC => {
+                DeliverySystemGeneration::FirstGeneration
+            }
+            Self::DvbT2 | Self::DvbS2 | Self::DvbC2 => DeliverySystemGeneration::SecondGeneration,
+        }
+    }
+
+    pub fn pretty_name(&self) -> &'static str {
+        match self {
+            DeliverySystem::DvbCAnnexA => "DVB-C Annex A",
+            DeliverySystem::DvbCAnnexB => "DVB-C Annex B",
+            DeliverySystem::DvbCAnnexC => "DVB-C Annex C",
+            DeliverySystem::DvbC2 => "DVB-C2",
+            DeliverySystem::DvbT => "DVB-T",
+            DeliverySystem::DvbT2 => "DVB-T2",
+            DeliverySystem::DvbS => "DVB-S",
+            DeliverySystem::DvbS2 => "DVB-S2",
+        }
+    }
+}
+
+impl Display for DeliverySystem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{}", self.pretty_name())
     }
 }

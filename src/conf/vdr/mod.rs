@@ -7,10 +7,7 @@ pub mod video_pid;
 
 use std::str::FromStr;
 
-use crate::{
-    conf::vdr::parameters::DeliverySystemGeneration, error::VdrParseError,
-    frontend::sys::FeDeliverySystem, interpret::ChannelInformation,
-};
+use crate::{error::VdrParseError, frontend::DeliverySystem, interpret::ChannelInformation};
 use audio_pid::AudioPIDList;
 use parameters::Parameters;
 use teletext_pid::TeletextPIDList;
@@ -222,7 +219,7 @@ impl From<ChannelInformation> for ChannelDefinition {
             roll_off: None,
             stream_id: None,
             t2_system_id: None, // TODO: Not sure where this is found
-            delivery_system_generation: Some(system_to_generation(&value.delivery_system)),
+            delivery_system_generation: Some(value.delivery_system.generation()),
             transmission_mode: None,
             input_mode: None,
             hierarchy: None,
@@ -248,17 +245,9 @@ impl From<ChannelInformation> for ChannelDefinition {
     }
 }
 
-fn system_to_source(system: &FeDeliverySystem) -> &'static str {
+fn system_to_source(system: &DeliverySystem) -> &'static str {
     match system {
-        FeDeliverySystem::DVBT | FeDeliverySystem::DVBT2 => "T",
-        _ => unimplemented!(),
-    }
-}
-
-fn system_to_generation(system: &FeDeliverySystem) -> DeliverySystemGeneration {
-    match system {
-        FeDeliverySystem::DVBT => DeliverySystemGeneration::FirstGeneration,
-        FeDeliverySystem::DVBT2 => DeliverySystemGeneration::SecondGeneration,
+        DeliverySystem::DvbT | DeliverySystem::DvbT2 => "T",
         _ => unimplemented!(),
     }
 }

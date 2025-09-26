@@ -2,10 +2,9 @@ pub mod descriptors;
 
 use std::{path::Path, time::Duration};
 
-use crate::demux::{
-    Demux,
-    sys::{DmxFilter, DmxSctFilterParams},
-};
+use rdvb_os_linux::demux::data::{DmxFilter, DmxSctFilterParams};
+
+use crate::demux::Demux;
 
 pub const DMX_CHECK_CRC: u32 = 1;
 pub const DMX_ONESHOT: u32 = 2;

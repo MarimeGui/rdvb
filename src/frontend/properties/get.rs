@@ -1,12 +1,11 @@
 use std::{collections::BTreeSet, marker::PhantomData};
 
-use crate::{
-    error::DtvError,
-    frontend::sys::{
-        FeDeliverySystem, FeModulation,
-        property::{Command, DtvProperty, DtvPropertyUnion, DtvStatsValue, FeCapScaleParams},
-    },
+use rdvb_os_linux::frontend::{
+    data::{FeDeliverySystem, FeModulation},
+    property::{Command, DtvProperty, DtvPropertyUnion, DtvStatsValue, FeCapScaleParams},
 };
+
+use crate::error::DtvError;
 
 // Complete list can be found in linux/drivers/media/dvb-core/dvb_frontend.c -> dtv_property_process_get
 

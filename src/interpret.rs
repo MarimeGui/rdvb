@@ -5,7 +5,7 @@ use crate::{
         audio_pid::{AudioPID, AudioPIDList},
         video_pid::VideoPID,
     },
-    frontend::{properties::set::BandwidthHz, sys::FeDeliverySystem},
+    frontend::{DeliverySystem, properties::set::BandwidthHz},
     mpeg::{decode_stupid_string, descriptors::Descriptor},
     scan::Transponder,
     si::{
@@ -21,7 +21,7 @@ use crate::{
 pub struct ChannelInformation {
     pub frequency: u32,
     pub bandwidth: BandwidthHz,
-    pub delivery_system: FeDeliverySystem,
+    pub delivery_system: DeliverySystem,
     pub symbol_rate: Option<u32>,
     pub name: String,
     pub logical_channel_number: Option<u16>,
